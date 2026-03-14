@@ -25,8 +25,20 @@ def hole_daten():
 
 st.title("🇨🇭 Basel Air Monitor")
 
+# Diese Zeile sorgt dafür, dass die Daten sofort beim Start geladen werden
+if 'daten_geladen' not in st.session_state:
+    st.session_state.daten_geladen = hole_daten()
+
+# Der Button kann die Daten jederzeit neu erzwingen
 if st.button('AKTUALISIEREN'):
-    daten = hole_daten()
+    st.session_state.daten_geladen = hole_daten()
+
+# Hier werden die Werte angezeigt (egal ob vom Start oder vom Button)
+daten = st.session_state.daten_geladen
+
+if daten:
+    temp, desc, ozon, pm10 = daten
+    # ... (hier kommt dein restlicher Code für st.metric, st.success usw.)
     if daten:
         temp, desc, ozon, pm10 = daten
         
