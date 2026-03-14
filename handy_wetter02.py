@@ -22,24 +22,23 @@ def hole_daten():
 
 def hole_live_ticker(team_name):
     try:
-        # Abfrage der Saison 2025 (läuft bis Sommer 2026)
+        # Saison 2025 (läuft bis Sommer 2026)
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
         
-        # Heutiges Datum als Referenz (15.03.2026)
-        heute = datetime(2026, 3, 15).date()
-        
+        # Referenzdatum: Heute, 15.03.2026
+        heute_datum = datetime(2026, 3, 15).date()
         aktuelles_spiel = None
 
-        # Wir suchen das Spiel, das am nächsten an HEUTE liegt (Zukunft oder Heute)
+        # Wir suchen in der Liste nach dem Spiel, das heute stattfindet
         for spiel in res:
-            spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+            spiel_zeit_obj = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
             if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                # Filter: Nur Spiele ab heute berücksichtigen
-                if spiel_zeit.date() >= heute:
+                # Wir nehmen das erste Spiel, das HEUTE oder in der Zukunft liegt
+                if spiel_zeit_obj.date() >= heute_datum:
                     aktuelles_spiel = spiel
                     break
         
-        # Falls kein zukünftiges gefunden wurde, nimm das allerletzte verfügbare
+        # Falls gar kein Spiel ab heute gefunden wurde, nimm das letzte aus der Liste
         if not aktuelles_spiel:
             for spiel in reversed(res):
                 if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
@@ -49,11 +48,10 @@ def hole_live_ticker(team_name):
         if aktuelles_spiel:
             s = aktuelles_spiel
             t1, t2 = s['team1']['shortName'], s['team2']['shortName']
+            spiel_zeit = datetime.strptime(s['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
             
-            # Die Anspielzeit aus der API (Format: 16:30)
-            spiel_zeit_obj = datetime.strptime(s['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
-            uhrzeit = spiel_zeit_obj.strftime("%H:%M")
-            datum = spiel_zeit_obj.strftime("%d.%m.")
+            uhrzeit = spiel_zeit.strftime("%H:%M")
+            datum = spiel_zeit.strftime("%d.%m.")
 
             if s['matchIsFinished']:
                 res_fin = s['matchResults'][0]
@@ -62,7 +60,6 @@ def hole_live_ticker(team_name):
                 res_live = s['matchResults'][-1]
                 return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
             else:
-                # Hier bleibt die Anspielzeit wie von der API geliefert (kein +1h)
                 return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
         
         return "Keine Spieldaten verfügbar"
@@ -81,8 +78,23 @@ if st.button('AKTUALISIEREN'):
 d = st.session_state.daten
 
 if d:
+    # Wetter-Emoji Logik wieder eingebaut
+    emoji = "🌡️"
+    d_lower = d['desc'].lower()
+    if "sonne" in d_lower or "heiter" in d_lower or "klar" in d_lower:
+        emoji = "☀️"
+    elif "wolke" in d_lower or "bedeckt" in d_lower or "bewölkt" in d_lower:
+        emoji = "☁️"
+    elif "regen" in d_lower or "schauer" in d_lower:
+        emoji = "🌧️"
+    elif "gewitter" in d_lower:
+        emoji = "⛈️"
+    elif "schnee" in d_lower:
+        emoji = "❄️"
+
+    # Wetter & Temperatur Anzeige
     col1, col2 = st.columns(2)
-    col1.metric("Temperatur", f"{d['temp']} °C")
+    col1.metric("Temperatur", f"{emoji} {d['temp']} °C")
     col2.write(f"Wetter: **{d['desc']}**")
     
     st.divider()
@@ -106,6 +118,6 @@ if d:
 else:
     st.error("Fehler beim Laden der Wetterdaten.")
 
-# Nur hier für den Zeitstempel unten nutzen wir die Zeitkorrektur (+1h)
+# Zeitstempel unten mit Korrektur (+1h)
 aktuelle_zeit = datetime.now() + timedelta(hours=1)
 st.caption(f"Stand: {aktuelle_zeit.strftime('%d.%m.%Y %H:%M')} | Basel App")
