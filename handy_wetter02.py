@@ -5,90 +5,73 @@ import requests
 st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
 
 def hole_daten():
-    stadt = "Basel"
-    url_wetter = f"https://wttr.in/{stadt}?format=j1&lang=de"
-    url_luft = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.5584&longitude=7.5733&current=pm10,ozone"
     try:
+        url_wetter = "https://wttr.in/Basel?format=j1&lang=de"
+        url_luft = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.5584&longitude=7.5733&current=pm10,ozone"
         res_w = requests.get(url_wetter, timeout=5).json()
         res_l = requests.get(url_luft, timeout=5).json()
-        temp = res_w['current_condition'][0]['temp_C']
-        desc = res_w['current_condition'][0]['lang_de'][0]['value']
-        ozon = res_l['current']['ozone']
-        pm10 = res_l['current']['pm10']
-        return temp, desc, ozon, pm10
+        return {
+            "temp": res_w['current_condition'][0]['temp_C'],
+            "desc": res_w['current_condition'][0]['lang_de'][0]['value'],
+            "ozon": res_l['current']['ozone'],
+            "pm10": res_l['current']['pm10']
+        }
     except: return None
 
-def hole_fussball_info(team_id):
+def hole_live_ticker(team_name):
     try:
-        # Prüfe das nächste Spiel
-        next_m = requests.get(f"https://api.openligadb.de/getnextmatchbyleagueteam/ch1/{team_id}", timeout=5).json()
-        if next_m and not next_m.get('matchIsFinished'):
-            t1 = next_m['team1']['shortName']
-            t2 = next_m['team2']['shortName']
-            termin = next_m['matchDateTime'].split('T')[1][:5]
-            return f"{t1} vs. {t2} (Morgen {termin} Uhr)"
-        
-        # Prüfe das letzte Spiel (für Resultat/Live)
-        last_m = requests.get(f"https://api.openligadb.de/getlastmatchbyleagueteam/ch1/{team_id}", timeout=5).json()
-        if last_m:
-            t1 = last_m['team1']['shortName']
-            t2 = last_m['team2']['shortName']
-            res_list = last_m.get('matchResults', [])
-            if res_list:
-                e1 = res_list[-1]['pointsTeam1']
-                e2 = res_list[-1]['pointsTeam2']
-                status = "LIVE" if not last_m['matchIsFinished'] else "Endstand"
-                return f"{t1} {e1}:{e2} {t2} ({status})"
-        return "Keine Daten"
-    except: return "Nicht erreichbar"
+        # Holt alle Spiele der Schweizer Liga
+        res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
+        # Suche das aktuellste Spiel für das Team
+        for spiel in reversed(res):
+            if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
+                t1 = spiel['team1']['shortName']
+                t2 = spiel['team2']['shortName']
+                
+                if spiel['matchIsFinished']:
+                    res_fin = spiel['matchResults'][0]
+                    return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Endstand)"
+                elif spiel['matchResults']: # Wenn das Spiel läuft (Tore vorhanden)
+                    res_live = spiel['matchResults'][-1]
+                    return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
+                else:
+                    uhrzeit = spiel['matchDateTime'].split('T')[1][:5]
+                    return f"Morgen: {t1} vs. {t2} ({uhrzeit} Uhr)"
+        return "Kein Spiel gefunden"
+    except: return "Daten laden..."
 
-# Titel in KÖNIGSBLAU
+# --- ANZEIGE ---
+# Titel wieder in Königsblau und zentriert
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
-if 'daten_geladen' not in st.session_state:
-    st.session_state.daten_geladen = hole_daten()
+if 'daten' not in st.session_state or st.button('AKTUALISIEREN'):
+    st.session_state.daten = hole_daten()
 
-if st.button('AKTUALISIEREN'):
-    st.session_state.daten_geladen = hole_daten()
-
-daten = st.session_state.daten_geladen
-
-if daten:
-    temp, desc, ozon, pm10 = daten
-    
-    # Verbesserte Emoji-Logik
-    emoji = "🌡️"
-    d_low = desc.lower()
-    if any(x in d_low for x in ["sonne", "heiter", "klar"]): emoji = "☀️"
-    elif any(x in d_low for x in ["wolke", "bewölkt", "wolkig", "bedeckt"]): emoji = "☁️"
-    elif any(x in d_low for x in ["regen", "schauer", "nass"]): emoji = "🌧️"
-    elif "gewitter" in d_low: emoji = "⛈️"
-
-    st.metric("Temperatur", f"{emoji} {temp} °C")
-    st.write(f"Wetter: **{desc}**")
+d = st.session_state.daten
+if d:
+    # Wetter & Luft
+    col1, col2 = st.columns(2)
+    col1.metric("Temperatur", f"{d['temp']} °C")
+    col2.write(f"Wetter: **{d['desc']}**")
     
     st.divider()
+    
+    if d['ozon'] > 120: st.error(f"Ozon: {d['ozon']} µg/m³ (Hoch)")
+    else: st.success(f"Ozon: {d['ozon']} µg/m³ (Gut)")
+    
+    if d['pm10'] > 50: st.error(f"Feinstaub: {d['pm10']} µg/m³ (Hoch)")
+    else: st.success(f"Feinstaub: {d['pm10']} µg/m³ (Gut)")
 
-    # Ozon & Feinstaub
-    if ozon > 120: st.error(f"Ozon: {ozon} µg/m³ (KRITISCH)")
-    elif ozon > 80: st.warning(f"Ozon: {ozon} µg/m³ (Erhöht)")
-    else: st.success(f"Ozon: {ozon} µg/m³ (Gut)")
-
-    if pm10 > 50: st.error(f"Feinstaub: {pm10} µg/m³ (KRITISCH)")
-    elif pm10 > 35: st.warning(f"Feinstaub: {pm10} µg/m³ (Erhöht)")
-    else: st.success(f"Feinstaub: {pm10} µg/m³ (Gut)")
-
-    # FUSSBALL UPDATE
+    # --- FUSSBALL UPDATE GANZ UNTEN ---
     st.divider()
-    st.subheader("⚽ Fussball-Update")
+    st.subheader("⚽ Fussball-Ticker")
     
-    fcb = hole_fussball_info(128)
-    yb = hole_fussball_info(122)
+    fcb_ticker = hole_live_ticker("Basel")
+    yb_ticker = hole_live_ticker("Young Boys")
     
-    st.markdown(f"🔴🔵 **FC Basel:** {fcb}")
-    st.markdown(f"🟡⚫ **Young Boys:** {yb}")
-
+    st.write(f"🔵🔴 **FC Basel:** {fcb_ticker}")
+    st.write(f"🟡⚫ **Young Boys:** {yb_ticker}")
 else:
-    st.error("Fehler beim Laden")
+    st.error("Daten konnten nicht geladen werden.")
 
 st.caption("Daten: wttr.in, Open-Meteo & OpenLigaDB")
