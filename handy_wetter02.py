@@ -22,47 +22,54 @@ def hole_daten():
 
 def hole_live_ticker(team_name):
     try:
-        # Abfrage der Saison 2025/26
+        # Abfrage der aktuellen Saison
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
+        heute = datetime.now().date()
         
-        # Heutiges Datum als fixer Filter (15.03.2026)
-        heute = datetime(2026, 3, 15).date()
-        
-        zukuenftige_spiele = []
+        naechstes = None
+        letztes = None
 
-        # Schritt 1: Alle Spiele finden, die heute oder in der Zukunft liegen
-        for spiel in res:
-            spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+        # Wir sortieren die Spiele nach Zeit
+        spiele = sorted(res, key=lambda x: x['matchDateTime'])
+
+        for spiel in spiele:
             if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                if spiel_zeit.date() >= heute:
-                    zukuenftige_spiele.append(spiel)
-        
-        # Schritt 2: Das Spiel anzeigen, das als Nächstes kommt
-        if zukuenftige_spiele:
-            s = zukuenftige_spiele[0] # Das erste Spiel ab heute
-            t1, t2 = s['team1']['shortName'], s['team2']['shortName']
+                spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S").date()
+                
+                if spiel_zeit >= heute:
+                    if not naechstes:
+                        naechstes = spiel
+                else:
+                    letztes = spiel
+
+        # Entscheidung: Was zeigen wir an?
+        anzeige_spiel = naechstes if naechstes else letztes
+
+        if anzeige_spiel:
+            s = anzeige_spiel
+            t1 = s['team1']['shortName']
+            t2 = s['team2']['shortName']
             spiel_zeit_obj = datetime.strptime(s['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
             uhrzeit = spiel_zeit_obj.strftime("%H:%M")
             datum = spiel_zeit_obj.strftime("%d.%m.")
 
-            if s['matchIsFinished']:
-                res_fin = s['matchResults'][0]
-                return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Endstand)"
-            elif s['matchResults']:
-                res_live = s['matchResults'][-1]
-                return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
-            else:
-                return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
-        
-        # Fallback: Wenn kein zukünftiges Spiel da ist, nimm das letzte vergangene
-        for spiel in reversed(res):
-            if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                t1, t2 = spiel['team1']['shortName'], spiel['team2']['shortName']
-                res_fin = spiel['matchResults'][0] if spiel['matchResults'] else {"pointsTeam1":0, "pointsTeam2":0}
-                return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Letztes Spiel)"
+            # Falls das Spiel läuft oder fertig ist
+            if s['matchIsFinished'] or s['matchResults']:
+                # Wir suchen das Endergebnis (meistens das erste in der Liste 'matchResults')
+                res_list = s.get('matchResults', [])
+                if res_list:
+                    # Wir nehmen das Resultat mit der höchsten ID (meistens das Endergebnis)
+                    final = res_list[-1]
+                    punkte1 = final['pointsTeam1']
+                    punkte2 = final['pointsTeam2']
+                    status = "(Endstand)" if s['matchIsFinished'] else "🔴 LIVE"
+                    return f"{t1} {punkte1}:{punkte2} {t2} {status}"
+            
+            # Falls es in der Zukunft liegt
+            return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
         
         return "Keine Spieldaten"
-    except:
+    except Exception as e:
         return "Daten aktuell nicht verfügbar"
 
 # --- ANZEIGE ---
@@ -80,9 +87,9 @@ if d:
     # Wetter-Emoji Logik
     emoji = "🌡️"
     d_lower = d['desc'].lower()
-    if any(word in d_lower for word in ["sonne", "heiter", "klar"]): emoji = "☀️"
-    elif any(word in d_lower for word in ["wolke", "bedeckt", "bewölkt"]): emoji = "☁️"
-    elif any(word in d_lower for word in ["regen", "schauer"]): emoji = "🌧️"
+    if any(x in d_lower for x in ["sonne", "heiter", "klar"]): emoji = "☀️"
+    elif any(x in d_lower for x in ["wolke", "bedeckt", "bewölkt"]): emoji = "☁️"
+    elif any(x in d_lower for x in ["regen", "schauer"]): emoji = "🌧️"
     elif "gewitter" in d_lower: emoji = "⛈️"
 
     col1, col2 = st.columns(2)
@@ -105,6 +112,4 @@ if d:
 else:
     st.error("Fehler beim Laden.")
 
-# Zeitstempel (+1h Korrektur für die Anzeige)
-aktuelle_zeit = datetime.now() + timedelta(hours=1)
-st.caption(f"Stand: {aktuelle_zeit.strftime('%d.%m.%Y %H:%M')} | Basel App")
+st.caption(f"Stand: {(datetime.now() + timedelta(hours=0)).strftime('%d.%m.%Y %H:%M')} | Basel App")
