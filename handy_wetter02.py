@@ -20,19 +20,33 @@ def hole_daten():
 
 def hole_fcb_resultat():
     try:
-        # Abfrage des letzten Spiels vom FC Basel (TeamID 128)
-        res = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/128", timeout=5).json()
-        t1 = res['team1']['shortName']
-        t2 = res['team2']['shortName']
-        # Das Endergebnis steht meist im ersten Eintrag der Resultate
-        res_list = res.get('matchResults', [])
-        if res_list:
-            # Wir suchen nach dem Resultat-Typ "Endergebnis" (oft ID 2)
-            e1 = res_list[0]['pointsTeam1']
-            e2 = res_list[0]['pointsTeam2']
-            return f"{t1} {e1}:{e2} {t2}"
-        return "Spiel läuft oder Resultat ausstehend"
-    except: return "FCB-Infos aktuell nicht erreichbar"
+        # 1. Wir schauen zuerst nach dem NÄCHSTEN Spiel
+        next_m = requests.get("https://api.openligadb.de/getnextmatchbyleagueteam/ch1/128", timeout=5).json()
+        
+        # 2. Wir schauen nach dem LETZTEN Spiel
+        last_m = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/128", timeout=5).json()
+        
+        # Logik: Wenn das nächste Spiel bald ansteht (z.B. morgen)
+        if next_m and not next_m.get('matchIsFinished'):
+            gegner = next_m['team2']['teamName'] if next_m['team1']['teamName'] == "FC Basel 1893" else next_m['team1']['teamName']
+            termin = next_m['matchDateTime'] # Format: 2024-03-16T16:30:00
+            # Wir machen das Datum etwas hübscher
+            tag_zeit = termin.split('T')[0].split('-')[2] + "." + termin.split('T')[0].split('-')[1] + ". um " + termin.split('T')[1][:5]
+            return f"Nächstes Spiel: **Gegen {gegner}** ({tag_zeit} Uhr)"
+        
+        # Falls kein direktes Vorschauspiel da ist, nimm das letzte Resultat
+        elif last_m:
+            t1 = last_m['team1']['shortName']
+            t2 = last_m['team2']['shortName']
+            res_list = last_m.get('matchResults', [])
+            if res_list:
+                e1 = res_list[0]['pointsTeam1']
+                e2 = res_list[0]['pointsTeam2']
+                return f"Letztes Resultat: **{t1} {e1}:{e2} {t2}**"
+        
+        return "Aktuell keine Spieldaten verfügbar"
+    except:
+        return "FCB-Infos aktuell nicht erreichbar"
 
 # 2. Titel in KÖNIGSBLAU (#00529F)
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
