@@ -27,36 +27,36 @@ def hole_luft():
         return {"ozon": res['current']['ozone'], "pm10": res['current']['pm10']}
     except: return None
 
-def hole_fussball(team_id, team_name):
+def hole_fussball_sicher(team_suche):
     try:
-        # Versuch 1: Über das nächste Spiel
-        res = requests.get(f"https://api.openligadb.de/getnextmatchbyleagueteam/ch1/{team_id}", timeout=3).json()
-        if not res or 'team1' not in res:
-            # Versuch 2: Über die gesamte Spieltagsliste (Fallback)
-            res_all = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=3).json()
-            for m in res_all:
-                if team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']:
-                    if not m['matchIsFinished']:
-                        res = m
-                        break
+        # Wir laden die komplette Schweizer Liga 2025
+        res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
         
-        if res:
-            t1, t2 = res['team1']['shortName'], res['team2']['shortName']
-            dt = res['matchDateTime'].split('T')
-            zeit = dt[1][:5]
-            datum = dt[0].split('-')[2] + "." + dt[0].split('-')[1] + "."
+        # Wir suchen das Spiel, das heute ist oder als nächstes kommt
+        for m in res:
+            t1_name = m['team1']['teamName']
+            t2_name = m['team2']['teamName']
             
-            # Resultat-Check (falls es schon läuft)
-            if res.get('matchResults'):
-                r = res['matchResults'][-1]
-                return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2} (LIVE/Endstand)"
-            
-            prefix = "Heute" if datum == datetime.now().strftime('%d.%m.') else datum
-            return f"{prefix}: {t1} vs. {t2} ({zeit} Uhr)"
+            if team_suche in t1_name or team_suche in t2_name:
+                # Wenn das Spiel noch nicht vorbei ist (oder heute stattfindet)
+                if not m['matchIsFinished']:
+                    t1_short = m['team1']['shortName']
+                    t2_short = m['team2']['shortName']
+                    dt = m['matchDateTime'].split('T')
+                    datum = dt[0].split('-')[2] + "." + dt[0].split('-')[1] + "."
+                    uhrzeit = dt[1][:5]
+                    
+                    # Live-Check
+                    if m['matchResults']:
+                        r = m['matchResults'][-1]
+                        return f"{t1_short} {r['pointsTeam1']}:{r['pointsTeam2']} {t2_short} (LIVE)"
+                    
+                    prefix = "Heute" if datum == datetime.now().strftime('%d.%m.') else datum
+                    return f"{prefix}: {t1_short} vs. {t2_short} ({uhrzeit} Uhr)"
         
         return "Kein Spiel gefunden"
     except:
-        return "Daten aktuell nicht abrufbar"
+        return "⚠️ API-Wartung (nachts)"
 
 # --- ANZEIGE ---
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
@@ -64,8 +64,8 @@ st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luf
 if st.button('AKTUALISIEREN') or 'w' not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball(128, "Basel")
-    st.session_state.yb = hole_fussball(122, "Young Boys")
+    st.session_state.fcb = hole_fussball_sicher("Basel")
+    st.session_state.yb = hole_fussball_sicher("Young Boys")
 
 w, l = st.session_state.w, st.session_state.l
 if w:
