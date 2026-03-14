@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 
-# 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
 
 def hole_daten():
@@ -11,38 +10,22 @@ def hole_daten():
     try:
         res_w = requests.get(url_wetter, timeout=5).json()
         res_l = requests.get(url_luft, timeout=5).json()
-        temp = res_w['current_condition'][0]['temp_C']
-        desc = res_w['current_condition'][0]['lang_de'][0]['value']
-        ozon = res_l['current']['ozone']
-        pm10 = res_l['current']['pm10']
-        return temp, desc, ozon, pm10
+        return res_w['current_condition'][0]['temp_C'], res_w['current_condition'][0]['lang_de'][0]['value'], res_l['current']['ozone'], res_l['current']['pm10']
     except: return None
 
-def hole_fcb_resultat():
+def hole_team_info(team_id):
     try:
-        # 1. Check auf das NÄCHSTE Spiel (Vorschau)
-        next_m = requests.get("https://api.openligadb.de/getnextmatchbyleagueteam/ch1/128", timeout=5).json()
-        if next_m and not next_m.get('matchIsFinished'):
-            gegner = next_m['team2']['teamName'] if next_m['team1']['teamName'] == "FC Basel 1893" else next_m['team1']['teamName']
-            termin = next_m['matchDateTime']
-            datum = termin.split('T')[0].split('-')[2] + "." + termin.split('T')[0].split('-')[1] + "."
-            zeit = termin.split('T')[1][:5]
-            return f"Nächstes Spiel: **Gegen {gegner}** ({datum} um {zeit} Uhr)"
-        
-        # 2. Falls kein Spiel ansteht, nimm das LETZTE Resultat
-        last_m = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/128", timeout=5).json()
-        if last_m:
-            t1 = last_m['team1']['shortName']
-            t2 = last_m['team2']['shortName']
-            res_list = last_m.get('matchResults', [])
-            if res_list:
-                e1 = res_list[0]['pointsTeam1']
-                e2 = res_list[0]['pointsTeam2']
-                return f"Letztes Resultat: **{t1} {e1}:{e2} {t2}**"
-        return "Aktuell keine FCB-Daten verfügbar"
-    except: return "FCB-Infos aktuell nicht erreichbar"
+        # Wir versuchen zuerst das letzte Resultat zu holen
+        res = requests.get(f"https://api.openligadb.de/getlastmatchbyleagueteam/ch1/{team_id}", timeout=5).json()
+        if res:
+            t1 = res['team1']['shortName']
+            t2 = res['team2']['shortName']
+            r = res.get('matchResults', [])
+            if r:
+                return f"{t1} {r[0]['pointsTeam1']}:{r[0]['pointsTeam2']} {t2} (Letztes Spiel)"
+        return "Keine Daten gefunden"
+    except: return "Nicht erreichbar"
 
-# Titel in KÖNIGSBLAU
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
 if 'daten_geladen' not in st.session_state:
@@ -55,32 +38,30 @@ daten = st.session_state.daten_geladen
 
 if daten:
     temp, desc, ozon, pm10 = daten
-    emoji = "🌡️"
-    d_lower = desc.lower()
-    if "sonne" in d_lower or "heiter" in d_lower: emoji = "☀️"
-    elif "wolke" in d_lower or "bewölkt" in d_lower or "wolkig" in d_lower: emoji = "☁️"
-    elif "regen" in d_lower: emoji = "🌧️"
-
-    st.metric("Temperatur", f"{emoji} {temp} °C")
+    st.metric("Temperatur", f"🌡️ {temp} °C")
     st.write(f"Wetter: **{desc}**")
-    
     st.divider()
 
-    # Ozon & Feinstaub
+    # Luftqualität
     if ozon > 120: st.error(f"Ozon: {ozon} µg/m³ (KRITISCH)")
-    elif ozon > 80: st.warning(f"Ozon: {ozon} µg/m³ (Erhöht)")
     else: st.success(f"Ozon: {ozon} µg/m³ (Gut)")
 
     if pm10 > 50: st.error(f"Feinstaub: {pm10} µg/m³ (KRITISCH)")
-    elif pm10 > 35: st.warning(f"Feinstaub: {pm10} µg/m³ (Erhöht)")
     else: st.success(f"Feinstaub: {pm10} µg/m³ (Gut)")
 
-    # FCB GANZ AM ENDE
+    # FUSSBALL SEKTION GANZ UNTEN
     st.divider()
-    fcb_info = hole_fcb_resultat()
-    st.markdown(f"⚽ **FCB-Update:** {fcb_info}")
+    st.subheader("⚽ Fussball-Update")
+    
+    # FC Basel (ID 128)
+    fcb = hole_team_info(128)
+    st.write(f"🔴🔵 **FC Basel:** {fcb}")
+    
+    # Young Boys (ID 131)
+    yb = hole_team_info(131)
+    st.write(f"🟡⚫ **Young Boys:** {yb}")
 
 else:
-    st.error("Fehler beim Laden der Wetterdaten")
+    st.error("Fehler beim Laden der Daten")
 
 st.caption("Daten: wttr.in, Open-Meteo & OpenLigaDB")
