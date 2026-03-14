@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
@@ -22,56 +22,56 @@ def hole_daten():
 
 def hole_live_ticker(team_name):
     try:
-        # Wir fragen die Saison 2025 ab (da sie bis Sommer 2026 läuft)
+        # Abfrage der Saison 2025 (läuft bis Sommer 2026)
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
-        jetzt = datetime.now()
+        # Heutiges Datum (15.03.2026)
+        heute = datetime(2026, 3, 15).date()
+        
         aktuelles_spiel = None
 
-        # Wir suchen das Spiel, das zeitlich am nächsten bei HEUTE (15.03.2026) liegt
+        # Wir suchen das Spiel, das HEUTE stattfindet oder als nächstes kommt
         for spiel in res:
             spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
             if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                # Wenn das Spiel heute ist oder in der Zukunft liegt, nehmen wir dieses
-                if spiel_zeit.date() >= jetzt.date():
+                # Wir ignorieren alles vor heute (kein Oktober mehr!)
+                if spiel_zeit.date() >= heute:
                     aktuelles_spiel = spiel
                     break
-                else:
-                    # Ansonsten merken wir uns das letzte Spiel als Fallback
+        
+        # Falls kein zukünftiges Spiel gefunden wurde, nimm das absolut letzte aus der Liste
+        if not aktuelles_spiel:
+            for spiel in reversed(res):
+                if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
                     aktuelles_spiel = spiel
+                    break
 
         if aktuelles_spiel:
             s = aktuelles_spiel
             t1, t2 = s['team1']['shortName'], s['team2']['shortName']
             
-            # Fall 1: Spiel ist fertig
+            # Zeit-Korrektur: Wir addieren 1 Stunde für die Schweizer Zeit
+            rohe_zeit = datetime.strptime(s['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+            korrigierte_zeit = rohe_zeit + timedelta(hours=1)
+            uhrzeit = korrigierte_zeit.strftime("%H:%M")
+            datum = korrigierte_zeit.strftime("%d.%m.")
+
             if s['matchIsFinished']:
                 res_fin = s['matchResults'][0]
                 return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Endstand)"
-            
-            # Fall 2: Spiel läuft gerade (Live-Ticker)
-            elif s['matchResults'] and not s['matchIsFinished']:
+            elif s['matchResults']:
                 res_live = s['matchResults'][-1]
                 return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
-            
-            # Fall 3: Spiel ist in der Zukunft/Heute geplant
             else:
-                termin = s['matchDateTime'].split('T')
-                datum_raw = termin[0].split('-')
-                datum_formatiert = f"{datum_raw[2]}.{datum_raw[1]}."
-                uhrzeit = termin[1][:5]
-                if datum_formatiert == jetzt.strftime("%d.%m."):
-                    return f"{t1} vs. {t2} (Heute, {uhrzeit} Uhr)"
-                else:
-                    return f"{t1} vs. {t2} ({datum_formatiert} {uhrzeit} Uhr)"
+                return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
         
-        return "Keine aktuellen Spieldaten"
+        return "Keine Spieldaten verfügbar"
     except:
-        return "Daten aktuell nicht verfügbar"
+        return "Daten-Schnittstelle hakt..."
 
 # --- ANZEIGE ---
+# Titel in Königsblau
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
-# Daten laden oder aktualisieren
 if 'daten' not in st.session_state:
     st.session_state.daten = hole_daten()
 
@@ -81,14 +81,12 @@ if st.button('AKTUALISIEREN'):
 d = st.session_state.daten
 
 if d:
-    # Wetter & Temperatur
     col1, col2 = st.columns(2)
     col1.metric("Temperatur", f"{d['temp']} °C")
     col2.write(f"Wetter: **{d['desc']}**")
     
     st.divider()
     
-    # Luftqualität (Schweizer Grenzwerte)
     if d['ozon'] > 120:
         st.error(f"Ozon: {d['ozon']} µg/m³ (Hoch)")
     else:
@@ -99,18 +97,16 @@ if d:
     else:
         st.success(f"Feinstaub: {d['pm10']} µg/m³ (Gut)")
 
-    # Fussball Ticker
     st.divider()
     st.subheader("⚽ Fussball-Update")
     
-    fcb_ticker = hole_live_ticker("Basel")
-    yb_ticker = hole_live_ticker("Young Boys")
-    
-    st.write(f"🔵🔴 **FC Basel:** {fcb_ticker}")
-    st.write(f"🟡⚫ **Young Boys:** {yb_ticker}")
+    # Hier rufen wir die Funktion für Basel und YB auf
+    st.write(f"🔵🔴 **FC Basel:** {hole_live_ticker('Basel')}")
+    st.write(f"🟡⚫ **Young Boys:** {hole_live_ticker('Young Boys')}")
 
 else:
-    st.error("Verbindungsfehler. Bitte erneut aktualisieren.")
+    st.error("Fehler beim Laden der Wetterdaten.")
 
-# Footer mit Zeitstempel
-st.caption(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Daten: Open-Meteo & OpenLigaDB")
+# Schweizer Zeit für den Zeitstempel unten (+1 Stunde)
+aktuelle_zeit = datetime.now() + timedelta(hours=1)
+st.caption(f"Stand: {aktuelle_zeit.strftime('%d.%m.%Y %H:%M')} | Basel App")
