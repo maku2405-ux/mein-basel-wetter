@@ -18,36 +18,31 @@ def hole_daten():
         return temp, desc, ozon, pm10
     except: return None
 
-def hole_yb_resultat():
+def hole_fcb_resultat():
     try:
-        # 1. Wir schauen zuerst nach dem NÄCHSTEN Spiel
-        next_m = requests.get("https://api.openligadb.de/getnextmatchbyleagueteam/ch1/3", timeout=5).json()
-        
-        # 2. Wir schauen nach dem LETZTEN Spiel
-        last_m = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/3", timeout=5).json()
-        
-        # Logik: Wenn ein Spiel ansteht
+        # 1. Check auf das NÄCHSTE Spiel (Vorschau)
+        next_m = requests.get("https://api.openligadb.de/getnextmatchbyleagueteam/ch1/128", timeout=5).json()
         if next_m and not next_m.get('matchIsFinished'):
-            gegner = next_m['team2']['teamName'] if next_m['team1']['teamName'] == "BSC Young Boys" else next_m['team1']['teamName']
+            gegner = next_m['team2']['teamName'] if next_m['team1']['teamName'] == "FC Basel 1893" else next_m['team1']['teamName']
             termin = next_m['matchDateTime']
-            tag_zeit = termin.split('T')[0].split('-')[2] + "." + termin.split('T')[0].split('-')[1] + ". um " + termin.split('T')[1][:5]
-            return f"Nächstes YB Spiel: **Gegen {gegner}** ({tag_zeit} Uhr)"
+            datum = termin.split('T')[0].split('-')[2] + "." + termin.split('T')[0].split('-')[1] + "."
+            zeit = termin.split('T')[1][:5]
+            return f"Nächstes Spiel: **Gegen {gegner}** ({datum} um {zeit} Uhr)"
         
-        # Falls kein direktes Vorschauspiel da ist, nimm das letzte Resultat
-        elif last_m:
+        # 2. Falls kein Spiel ansteht, nimm das LETZTE Resultat
+        last_m = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/128", timeout=5).json()
+        if last_m:
             t1 = last_m['team1']['shortName']
             t2 = last_m['team2']['shortName']
             res_list = last_m.get('matchResults', [])
             if res_list:
                 e1 = res_list[0]['pointsTeam1']
                 e2 = res_list[0]['pointsTeam2']
-                return f"Letztes YB Resultat: **{t1} {e1}:{e2} {t2}**"
-        
-        return "Aktuell keine YB Spieldaten verfügbar"
-    except:
-        return "YB-Infos aktuell nicht erreichbar"
+                return f"Letztes Resultat: **{t1} {e1}:{e2} {t2}**"
+        return "Aktuell keine FCB-Daten verfügbar"
+    except: return "FCB-Infos aktuell nicht erreichbar"
 
-# 2. Titel in KÖNIGSBLAU (#00529F)
+# Titel in KÖNIGSBLAU
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
 if 'daten_geladen' not in st.session_state:
@@ -71,7 +66,7 @@ if daten:
     
     st.divider()
 
-    # Ozon & Feinstaub (Mitte der App)
+    # Ozon & Feinstaub
     if ozon > 120: st.error(f"Ozon: {ozon} µg/m³ (KRITISCH)")
     elif ozon > 80: st.warning(f"Ozon: {ozon} µg/m³ (Erhöht)")
     else: st.success(f"Ozon: {ozon} µg/m³ (Gut)")
@@ -80,12 +75,12 @@ if daten:
     elif pm10 > 35: st.warning(f"Feinstaub: {pm10} µg/m³ (Erhöht)")
     else: st.success(f"Feinstaub: {pm10} µg/m³ (Gut)")
 
-    # 3. FCB GANZ AM ENDE
+    # FCB GANZ AM ENDE
     st.divider()
-    fcb = hole_fcb_resultat()
-    st.markdown(f"⚽ **FCB Live-Update:** {fcb}")
+    fcb_info = hole_fcb_resultat()
+    st.markdown(f"⚽ **FCB-Update:** {fcb_info}")
 
 else:
-    st.error("Fehler beim Laden")
+    st.error("Fehler beim Laden der Wetterdaten")
 
 st.caption("Daten: wttr.in, Open-Meteo & OpenLigaDB")
