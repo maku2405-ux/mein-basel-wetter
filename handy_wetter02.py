@@ -19,39 +19,23 @@ def hole_daten():
         }
     except: return None
 
-def hole_live_ticker(team_name):
+def hole_fussball(team_id):
     try:
-        # Wir holen ALLE Spiele der Saison
-        res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
-        
-        # Wir suchen das Spiel, das heute stattfindet oder als letztes war
-        aktuelles_spiel = None
-        for spiel in res:
-            if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                aktuelles_spiel = spiel
-                # Wenn das Spiel noch nicht vorbei ist, ist es das, was wir suchen!
-                if not spiel['matchIsFinished']:
-                    break
-        
-        if aktuelles_spiel:
-            s = aktuelles_spiel
-            t1 = s['team1']['shortName']
-            t2 = s['team2']['shortName']
+        # Wir holen direkt das nächste Spiel für das Team (Basel=128, YB=122)
+        res = requests.get(f"https://api.openligadb.de/getnextmatchbyleagueteam/ch1/{team_id}", timeout=5).json()
+        if res:
+            t1 = res['team1']['shortName']
+            t2 = res['team2']['shortName']
+            termin = res['matchDateTime'].split('T')
+            datum = termin[0].split('-')[2] + "." + termin[0].split('-')[1] + "."
+            zeit = termin[1][:5]
             
-            if s['matchIsFinished']:
-                res_fin = s['matchResults'][0]
-                return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Endstand)"
-            elif s['matchResults']: 
-                # Das ist der Live-Ticker Modus
-                res_live = s['matchResults'][-1]
-                return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
-            else:
-                # Vorschau für heute
-                termin = s['matchDateTime'].split('T')
-                uhrzeit = termin[1][:5]
-                return f"Heute: {t1} vs. {t2} (Anpfiff {uhrzeit} Uhr)"
-        
-        return "Kein Spiel in Sicht"
+            # Prüfen ob es heute ist
+            heute = datetime.now().strftime('%d.%m.')
+            prefix = "Heute" if datum == heute else datum
+            
+            return f"{prefix}: {t1} vs. {t2} ({zeit} Uhr)"
+        return "Keine aktuellen Spiele gefunden"
     except: return "Daten laden..."
 
 # --- ANZEIGE ---
@@ -80,9 +64,11 @@ if d:
     st.divider()
     st.subheader("⚽ Fussball-Ticker")
     
-    st.write(f"🔵🔴 **FC Basel:** {hole_live_ticker('Basel')}")
-    st.write(f"🟡⚫ **Young Boys:** {hole_live_ticker('Young Boys')}")
+    # 128 = FC Basel, 122 = Young Boys
+    st.write(f"🔵🔴 **FC Basel:** {hole_fussball(128)}")
+    st.write(f"🟡⚫ **Young Boys:** {hole_fussball(122)}")
 else:
     st.error("Daten konnten nicht geladen werden.")
 
-st.caption(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Basel App")
+# Hier habe ich das "Basel App" entfernt und durch die Quelle ersetzt
+st.caption(f"Letztes Update: {datetime.now().strftime('%H:%M')} | Quelle: Open-Meteo & OpenLigaDB")
