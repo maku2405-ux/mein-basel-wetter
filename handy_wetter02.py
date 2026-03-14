@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 
+# 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
 
 def hole_daten():
@@ -19,16 +20,22 @@ def hole_daten():
 
 def hole_fcb_resultat():
     try:
-        # Holt Daten der Schweizer Super League
+        # Abfrage des letzten Spiels vom FC Basel (TeamID 128)
         res = requests.get("https://api.openligadb.de/getlastmatchbyleagueteam/ch1/128", timeout=5).json()
         t1 = res['team1']['shortName']
         t2 = res['team2']['shortName']
-        # Suche nach dem Endergebnis (Resultat-Typ 2 oder 1)
-        ergebnis = res['matchResults'][0]
-        return f"{t1} {ergebnis['pointsTeam1']}:{ergebnis['pointsTeam2']} {t2}"
+        # Das Endergebnis steht meist im ersten Eintrag der Resultate
+        res_list = res.get('matchResults', [])
+        if res_list:
+            # Wir suchen nach dem Resultat-Typ "Endergebnis" (oft ID 2)
+            e1 = res_list[0]['pointsTeam1']
+            e2 = res_list[0]['pointsTeam2']
+            return f"{t1} {e1}:{e2} {t2}"
+        return "Spiel läuft oder Resultat ausstehend"
     except: return "FCB-Infos aktuell nicht erreichbar"
 
-st.markdown("<h1 style='text-align: center; color: #FF0000;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
+# 2. Titel in KÖNIGSBLAU (#00529F)
+st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
 if 'daten_geladen' not in st.session_state:
     st.session_state.daten_geladen = hole_daten()
@@ -43,18 +50,15 @@ if daten:
     emoji = "🌡️"
     d_lower = desc.lower()
     if "sonne" in d_lower or "heiter" in d_lower: emoji = "☀️"
-    elif "wolke" in d_lower or "bewölkt" in d_lower: emoji = "☁️"
+    elif "wolke" in d_lower or "bewölkt" in d_lower or "wolkig" in d_lower: emoji = "☁️"
     elif "regen" in d_lower: emoji = "🌧️"
 
     st.metric("Temperatur", f"{emoji} {temp} °C")
     st.write(f"Wetter: **{desc}**")
     
-    # FCB Sektion
-    st.divider()
-    fcb = hole_fcb_resultat()
-    st.markdown(f"⚽ **FCB Live-Update:** {fcb}")
     st.divider()
 
+    # Ozon & Feinstaub (Mitte der App)
     if ozon > 120: st.error(f"Ozon: {ozon} µg/m³ (KRITISCH)")
     elif ozon > 80: st.warning(f"Ozon: {ozon} µg/m³ (Erhöht)")
     else: st.success(f"Ozon: {ozon} µg/m³ (Gut)")
@@ -62,6 +66,12 @@ if daten:
     if pm10 > 50: st.error(f"Feinstaub: {pm10} µg/m³ (KRITISCH)")
     elif pm10 > 35: st.warning(f"Feinstaub: {pm10} µg/m³ (Erhöht)")
     else: st.success(f"Feinstaub: {pm10} µg/m³ (Gut)")
+
+    # 3. FCB GANZ AM ENDE
+    st.divider()
+    fcb = hole_fcb_resultat()
+    st.markdown(f"⚽ **FCB Live-Update:** {fcb}")
+
 else:
     st.error("Fehler beim Laden")
 
