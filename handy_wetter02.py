@@ -20,60 +20,51 @@ def hole_daten():
     except:
         return None
 
-def hole_live_ticker(team_name):
+def hole_live_ticker(suchname):
     try:
-        # Abfrage der aktuellen Saison
+        # Abfrage der aktuellen Saison 2025/26
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
-        heute = datetime.now().date()
         
-        naechstes = None
-        letztes = None
+        # Das heutige Datum (15.03.2026)
+        jetzt = datetime.now()
+        
+        spiele_liste = []
 
-        # Wir sortieren die Spiele nach Zeit
-        spiele = sorted(res, key=lambda x: x['matchDateTime'])
+        # Wir filtern die Liste: Nur Spiele, die HEUTE oder in der ZUKUNFT liegen
+        for spiel in res:
+            spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+            if suchname in spiel['team1']['teamName'] or suchname in spiel['team2']['teamName']:
+                # Filter: Alles vor heute fliegt raus!
+                if spiel_zeit.date() >= jetzt.date():
+                    spiele_liste.append(spiel)
+        
+        # Sortieren, damit das zeitlich nächste Spiel oben steht
+        spiele_liste.sort(key=lambda x: x['matchDateTime'])
 
-        for spiel in spiele:
-            if team_name in spiel['team1']['teamName'] or team_name in spiel['team2']['teamName']:
-                spiel_zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S").date()
-                
-                if spiel_zeit >= heute:
-                    if not naechstes:
-                        naechstes = spiel
-                else:
-                    letztes = spiel
-
-        # Entscheidung: Was zeigen wir an?
-        anzeige_spiel = naechstes if naechstes else letztes
-
-        if anzeige_spiel:
-            s = anzeige_spiel
+        if spiele_liste:
+            s = spiele_liste[0] # Das absolut nächste Spiel
             t1 = s['team1']['shortName']
             t2 = s['team2']['shortName']
             spiel_zeit_obj = datetime.strptime(s['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
             uhrzeit = spiel_zeit_obj.strftime("%H:%M")
             datum = spiel_zeit_obj.strftime("%d.%m.")
 
-            # Falls das Spiel läuft oder fertig ist
-            if s['matchIsFinished'] or s['matchResults']:
-                # Wir suchen das Endergebnis (meistens das erste in der Liste 'matchResults')
-                res_list = s.get('matchResults', [])
-                if res_list:
-                    # Wir nehmen das Resultat mit der höchsten ID (meistens das Endergebnis)
-                    final = res_list[-1]
-                    punkte1 = final['pointsTeam1']
-                    punkte2 = final['pointsTeam2']
-                    status = "(Endstand)" if s['matchIsFinished'] else "🔴 LIVE"
-                    return f"{t1} {punkte1}:{punkte2} {t2} {status}"
-            
-            # Falls es in der Zukunft liegt
-            return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
+            # Live-Ticker Logik
+            if s['matchResults'] and not s['matchIsFinished']:
+                res_live = s['matchResults'][-1]
+                return f"🔴 LIVE: {t1} {res_live['pointsTeam1']}:{res_live['pointsTeam2']} {t2}"
+            elif s['matchIsFinished']:
+                res_fin = s['matchResults'][0]
+                return f"{t1} {res_fin['pointsTeam1']}:{res_fin['pointsTeam2']} {t2} (Endstand)"
+            else:
+                return f"{t1} vs. {t2} ({datum} um {uhrzeit} Uhr)"
         
-        return "Keine Spieldaten"
-    except Exception as e:
-        return "Daten aktuell nicht verfügbar"
+        return "Kein Spiel in den nächsten Tagen"
+    except:
+        return "Daten-Update folgt..."
 
 # --- ANZEIGE ---
-st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: #00529F;'>Basler Luftqualität</h1>", unsafe_allow_html=True)
 
 if 'daten' not in st.session_state:
     st.session_state.daten = hole_daten()
@@ -84,7 +75,7 @@ if st.button('AKTUALISIEREN'):
 d = st.session_state.daten
 
 if d:
-    # Wetter-Emoji Logik
+    # Emoji-Logik
     emoji = "🌡️"
     d_lower = d['desc'].lower()
     if any(x in d_lower for x in ["sonne", "heiter", "klar"]): emoji = "☀️"
@@ -98,18 +89,20 @@ if d:
     
     st.divider()
     
+    # Luftqualität
     if d['ozon'] > 120: st.error(f"Ozon: {d['ozon']} µg/m³ (Hoch)")
     else: st.success(f"Ozon: {d['ozon']} µg/m³ (Gut)")
     
     if d['pm10'] > 50: st.error(f"Feinstaub: {d['pm10']} µg/m³ (Hoch)")
     else: st.success(f"Feinstaub: {d['pm10']} µg/m³ (Gut)")
 
+    # Fussball
     st.divider()
     st.subheader("⚽ Fussball-Update")
-    st.write(f"🔵🔴 **FC Basel:** {hole_live_ticker('Basel')}")
-    st.write(f"🟡⚫ **Young Boys:** {hole_live_ticker('Young Boys')}")
+    st.write(f"🔵🔴 **FC Basel:** {hole_live_ticker('FC Basel 1893')}")
+    st.write(f"🟡⚫ **Young Boys:** {hole_live_ticker('BSC Young Boys')}")
 
 else:
-    st.error("Fehler beim Laden.")
+    st.error("Ladefehler...")
 
-st.caption(f"Stand: {(datetime.now() + timedelta(hours=0)).strftime('%d.%m.%Y %H:%M')} | Basel App")
+st.caption(f"Stand: {datetime.now().strftime('%d.%m.%Y %H:%M')} | Basel App")
