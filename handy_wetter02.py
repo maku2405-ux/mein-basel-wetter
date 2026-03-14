@@ -7,22 +7,16 @@ st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
 
 def hole_wetter():
     try:
-        # Wir nutzen Open-Meteo auch fürs Wetter, das ist stabiler für Emojis
-        url = "https://api.open-meteo.com/v1/forecast?latitude=47.5584&longitude=7.5733&current=temperature_2m,weather_code,relative_humidity_2m&timezone=Europe%2FBerlin"
+        url = "https://api.open-meteo.com/v1/forecast?latitude=47.5584&longitude=7.5733&current=temperature_2m,weather_code&timezone=Europe%2FBerlin"
         res = requests.get(url, timeout=5).json()
         curr = res['current']
-        temp = curr['temperature_2m']
-        code = curr['weather_code']
+        temp, code = curr['temperature_2m'], curr['weather_code']
         
-        # Wetter-Code zu Emoji (WMO Standard)
-        emoji = "🌡️"
-        desc = "Unbekannt"
+        emoji, desc = "🌡️", "Unbekannt"
         if code == 0: emoji, desc = "☀️", "Sonnig"
         elif code in [1, 2, 3]: emoji, desc = "🌤️", "Leicht bewölkt"
         elif code in [45, 48]: emoji, desc = "🌫️", "Nebel"
         elif code in [51, 53, 55, 61, 63, 65]: emoji, desc = "🌧️", "Regen"
-        elif code in [71, 73, 75]: emoji, desc = "❄️", "Schnee"
-        elif code in [95, 96, 99]: emoji, desc = "⛈️", "Gewitter"
         else: emoji, desc = "☁️", "Bedeckt"
         
         return {"temp": temp, "emoji": emoji, "desc": desc}
@@ -37,35 +31,44 @@ def hole_luft():
 
 def hole_fussball(team_id):
     try:
-        # Stabilerer Abruf ohne feste Jahreszahl in der URL
-        res = requests.get(f"https://api.openligadb.de/getnextmatchbyleagueteam/ch1/{team_id}", timeout=5).json()
-        if res:
-            t1, t2 = res['team1']['shortName'], res['team2']['shortName']
-            dt = res['matchDateTime'].split('T')
-            datum = dt[0].split('-')[2] + "." + dt[0].split('-')[1] + "."
-            zeit = dt[1][:5]
-            return f"{t1} vs {t2} ({datum} {zeit})"
-        return "Keine Spiele"
-    except: return "⚠️ Info folgt"
+        # Wir holen direkt das nächste Spiel für die spezifische Team-ID
+        # Basel = 128, YB = 122
+        url = f"https://api.openligadb.de/getnextmatchbyleagueteam/ch1/{team_id}"
+        s = requests.get(url, timeout=5).json()
+        
+        if s:
+            t1, t2 = s['team1']['shortName'], s['team2']['shortName']
+            termin = s['matchDateTime'].split('T')
+            datum_raw = termin[0].split('-')
+            datum = f"{datum_raw[2]}.{datum_raw[1]}."
+            uhrzeit = termin[1][:5]
+            
+            # Check ob es heute ist
+            heute = datetime.now().strftime('%d.%m.')
+            prefix = "Heute" if datum == heute else datum
+            
+            # Falls das Spiel schon läuft oder fertig ist, Resultat zeigen
+            if s['matchResults']:
+                res_akt = s['matchResults'][-1]
+                tore = f"{res_akt['pointsTeam1']}:{res_akt['pointsTeam2']}"
+                status = "LIVE" if not s['matchIsFinished'] else "Endstand"
+                return f"{t1} {tore} {t2} ({status})"
+            
+            return f"{prefix}: {t1} vs. {t2} ({uhrzeit} Uhr)"
+        return "Kein Spiel gefunden"
+    except: return "⚠️ Verbindung klemmt"
 
 # --- ANZEIGE ---
 st.markdown("<h1 style='text-align: center; color: #00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
 
-if st.button('AKTUALISIEREN'):
+if st.button('AKTUALISIEREN') or 'w' not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball(128)
-    st.session_state.yb = hole_fussball(122)
-
-if 'w' not in st.session_state:
-    st.session_state.w = hole_wetter()
-    st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball(128)
-    st.session_state.yb = hole_fussball(122)
+    st.session_state.fcb = hole_fussball(128) # Basel
+    st.session_state.yb = hole_fussball(122)  # YB
 
 # Wetter & Luft Anzeige
 w, l = st.session_state.w, st.session_state.l
-
 if w:
     col1, col2 = st.columns(2)
     col1.metric("Temperatur", f"{w['emoji']} {w['temp']} °C")
@@ -85,4 +88,4 @@ st.subheader("⚽ Fussball-Ticker")
 st.write(f"🔵🔴 **FC Basel:** {st.session_state.fcb}")
 st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
 
-st.caption(f"Letztes Update: {datetime.now().strftime('%H:%M')} | Basel App")
+st.caption(f"Letztes Update: {datetime.now().strftime('%H:%M')} | Daten: Open-Meteo & OpenLigaDB")
