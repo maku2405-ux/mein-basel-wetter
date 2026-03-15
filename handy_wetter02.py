@@ -3,17 +3,10 @@ import requests
 from datetime import datetime
 import pytz
 
-# ---------------------------------------------------------
-# Seiteneinstellungen
-# ---------------------------------------------------------
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 LAT = 47.5584
 LON = 7.5733
-
-# ---------------------------------------------------------
-# Hilfsfunktionen
-# ---------------------------------------------------------
 
 def pollen_status(v):
     if v < 10:
@@ -25,11 +18,11 @@ def pollen_status(v):
 
 def luft_status(v):
     if v < 20:
-        return f"🟢 {v}"
+        return "🟢 {}".format(v)
     elif v < 50:
-        return f"🟡 {v}"
+        return "🟡 {}".format(v)
     else:
-        return f"🔴 {v}"
+        return "🔴 {}".format(v)
 
 def rhein_emoji(temp):
     if temp < 18:
@@ -53,18 +46,15 @@ def wetter_beschreibung(code):
     }
     return mapping.get(code, ("☁️", "Bedeckt"))
 
-# ---------------------------------------------------------
-# Wetter & Luftdaten
-# ---------------------------------------------------------
-
 def hole_wetter():
     try:
         url = (
             "https://api.open-meteo.com/v1/forecast"
-            f"?latitude={LAT}&longitude={LON}"
+            "?latitude={}&longitude={}"
             "&current=temperature_2m,weather_code"
             "&timezone=Europe%2FBerlin"
-        )
+        ).format(LAT, LON)
+
         r = requests.get(url, timeout=10)
         data = r.json()
         c = data["current"]
@@ -82,9 +72,10 @@ def hole_luft():
     try:
         url = (
             "https://air-quality-api.open-meteo.com/v1/air-quality"
-            f"?latitude={LAT}&longitude={LON}"
+            "?latitude={}&longitude={}"
             "&current=pm2_5,pm10,ozone,birch_pollen,grass_pollen"
-        )
+        ).format(LAT, LON)
+
         r = requests.get(url, timeout=10)
         data = r.json()
         c = data["current"]
@@ -98,10 +89,6 @@ def hole_luft():
     except Exception:
         return None
 
-# ---------------------------------------------------------
-# UI Dashboard
-# ---------------------------------------------------------
-
 st.markdown(
     "<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>",
     unsafe_allow_html=True
@@ -111,10 +98,46 @@ if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
 
-# Wetter
 w = st.session_state.get("w")
 if w:
     rhein_e = rhein_emoji(w["rhein"])
     c1, c2 = st.columns(2)
     with c1:
-        st.metric("Luft", f"{w['emoji']} {w['temp']}°
+        st.metric("Luft", "{} {}°C".format(w["emoji"], w["temp"]))
+        st.write("Aktuell: <b>{}</b>".format(w["desc"]), unsafe_allow_html=True)
+    with c2:
+        st.metric("Rhein", "{} {}°C".format(rhein_e, w["rhein"]))
+
+st.divider()
+st.subheader("🌳 Umwelt & Luft")
+
+l = st.session_state.get("l")
+if l:
+    st.write("**Aktuelle Werte:**")
+    cp1, cp2 = st.columns(2)
+    cp1.write("Birke: {}".format(pollen_status(l["birke"])))
+    cp2.write("Gräser: {}".format(pollen_status(l["gras"])))
+
+    st.write("")
+    cl1, cl2, cl3 = st.columns(3)
+    cl1.write("Ozon: {}".format(luft_status(l["ozon"])))
+    cl2.write("PM 2.5: {}".format(luft_status(l["pm25"])))
+    cl3.write("PM 10: {}".format(luft_status(l["pm10"])))
+else:
+    st.warning("Umweltdaten konnten nicht geladen werden.")
+
+st.write("")
+st.markdown(
+    "<small><b>PM 2.5:</b> Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>",
+    unsafe_allow_html=True
+)
+st.markdown(
+    "<small><b>PM 10:</b> Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>",
+    unsafe_allow_html=True
+)
+
+st.divider()
+tz_ch = pytz.timezone("Europe/Zurich")
+jetzt_ch = datetime.now(tz_ch).strftime("%H:%M")
+st.caption("Stand: {} | Quellen: Open-Meteo".format(jetzt_ch))
+st.caption("(C)2026 by M. Kunz")
