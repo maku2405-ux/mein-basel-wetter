@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 import pytz
+from PIL import Image
 
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
