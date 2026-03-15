@@ -28,30 +28,45 @@ def hole_luft():
 
 def hole_fussball(team_suche):
     try:
-        url = "https://api.openligadb.de/getmatchdata/ch1/2025"
+        url = "[api.openligadb.de](https://api.openligadb.de/getmatchdata/ch1/2025)"
         spiele = requests.get(url, timeout=5).json()
         jetzt_datum = datetime.now().strftime("%Y-%m-%d")
         
-        # Wir suchen rückwärts (vom Saisonende her)
-        for m in reversed(spiele):
+        naechstes = None
+        for m in spiele:  # Vorwärts statt rückwärts
             if team_suche in m["team1"]["teamName"] or team_suche in m["team2"]["teamName"]:
                 m_date = m["matchDateTime"].split('T')[0]
                 
-                # Wir zeigen das Spiel, wenn es heute ist oder in der Zukunft liegt
+                # Spiel ist heute oder in der Zukunft
                 if m_date >= jetzt_datum:
-                    t1, t2 = m["team1"]["shortName"], m["team2"]["shortName"]
-                    uhrzeit = m["matchDateTime"].split('T')[1][:5]
-                    tag = m_date.split('-')[2] + "." + m_date.split('-')[1] + "."
-                    
-                    if m["matchResults"]:
-                        r = m["matchResults"][-1]
-                        status = "LIVE" if not m["matchIsFinished"] else "Endstand"
-                        return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2} ({status})"
-                    
-                    prefix = "Heute" if m_date == jetzt_datum else tag
-                    return f"{prefix}: {t1} vs. {t2} ({uhrzeit} Uhr)"
-        return "Kein Spiel gefunden"
-    except: return "⚠️ Daten laden..."
+                    naechstes = m
+                    break  # Erstes zukünftiges Spiel gefunden
+                
+                # Oder: Spiel läuft noch (nicht beendet)
+                if not m.get("matchIsFinished", True):
+                    naechstes = m
+                    break
+        
+        if not naechstes:
+            return "Kein Spiel gefunden"
+        
+        m = naechstes
+        t1, t2 = m["team1"]["shortName"], m["team2"]["shortName"]
+        m_date = m["matchDateTime"].split('T')[0]
+        uhrzeit = m["matchDateTime"].split('T')[1][:5]
+        tag = m_date.split('-')[2] + "." + m_date.split('-')[1] + "."
+        
+        if m["matchResults"]:
+            r = m["matchResults"][-1]
+            status = "LIVE" if not m["matchIsFinished"] else "Endstand"
+            return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2} ({status})"
+        
+        prefix = "Heute" if m_date == jetzt_datum else tag
+        return f"{prefix}: {t1} vs. {t2} ({uhrzeit} Uhr)"
+        
+    except Exception as e:
+        return f"⚠️ Fehler: {str(e)}"
+
 
 # 3. Anzeige
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
