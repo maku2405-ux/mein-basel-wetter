@@ -84,97 +84,29 @@ def hole_fussball_ticker(team_id):
         }
 
         heute = datetime.now().strftime('%Y-%m-%d')
-        params = {
+
+        # ---------------------------------------------------------
+        # 1) HEUTIGES SPIEL ABFRAGEN
+        # ---------------------------------------------------------
+        params_today = {
             "team": team_id,
             "date": heute,
             "timezone": "Europe/Zurich"
         }
 
-        r = requests.get(url, headers=headers, params=params, timeout=10).json()
-        games = r.get("response", [])
+        r_today = requests.get(url, headers=headers, params=params_today, timeout=10).json()
+        games_today = r_today.get("response", [])
 
-        if not games:
-            return "Heute kein Spiel."
+        if games_today:
+            m = games_today[0]
+            home = m["teams"]["home"]["name"]
+            away = m["teams"]["away"]["name"]
+            status = m["fixture"]["status"]["short"]
+            goals_home = m["goals"]["home"]
+            goals_away = m["goals"]["away"]
 
-        m = games[0]
-        home = m["teams"]["home"]["name"]
-        away = m["teams"]["away"]["name"]
-        status = m["fixture"]["status"]["short"]
-        goals_home = m["goals"]["home"]
-        goals_away = m["goals"]["away"]
+            if status == "NS":
+                zeit = m["fixture"]["date"][11:16]
+                return f"{home} vs. {away} (Anpfiff {zeit})"
 
-        if status == "NS":
-            zeit = m["fixture"]["date"][11:16]
-            return f"{home} vs. {away} (Anpfiff {zeit})"
-
-        if status in ["1H", "2H", "HT"]:
-            return f"{home} {goals_home}:{goals_away} {away} 🟢 LIVE"
-
-        if status == "FT":
-            return f"{home} {goals_home}:{goals_away} {away} (Endstand)"
-
-        return "Spielstatus unbekannt."
-
-    except:
-        return "Daten nicht erreichbar."
-
-# ---------------------------------------------------------
-# UI Dashboard
-# ---------------------------------------------------------
-
-st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
-
-if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
-    st.session_state.w = hole_wetter()
-    st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball_ticker(TEAM_BASEL)
-    st.session_state.yb = hole_fussball_ticker(TEAM_YB)
-
-# Wetter
-w = st.session_state.w
-if w:
-    rhein_e = rhein_emoji(w["rhein"])
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-        st.write(f"Aktuell: **{w['desc']}**")
-    with c2:
-        st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
-
-# Umwelt
-st.divider()
-st.subheader("🌳 Umwelt & Luft")
-
-l = st.session_state.l
-if l:
-    st.write("**Aktuelle Werte:**")
-    cp1, cp2 = st.columns(2)
-    cp1.write(f"Birke: {pollen_status(l['birke'])}")
-    cp2.write(f"Gräser: {pollen_status(l['gras'])}")
-
-    st.write("")
-    cl1, cl2, cl3 = st.columns(3)
-    cl1.write(f"Ozon: {luft_status(l['ozon'])}")
-    cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
-    cl3.write(f"PM 10: {luft_status(l['pm10'])}")
-else:
-    st.warning("Umweltdaten konnten nicht geladen werden.")
-
-st.write("") 
-st.markdown("<small>**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>", unsafe_allow_html=True)
-st.markdown("<small>**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>", unsafe_allow_html=True)
-
-# Fussball
-st.divider()
-st.subheader("⚽ Fussball-Ticker (Live)")
-
-st.write("🔴🔵 FC Basel: " + st.session_state.fcb)
-st.write("🟡⚫ Young Boys: " + st.session_state.yb)
-
-# Fusszeile
-st.divider()
-tz_ch = pytz.timezone('Europe/Zurich')
-jetzt_ch = datetime.now(tz_ch).strftime('%H:%M')
-
-st.caption(f"Stand: {jetzt_ch} | Quellen: Open-Meteo, API-Football")
-st.caption("(C)2026 by M. Kunz")
+            if status in ["
