@@ -43,7 +43,7 @@ def hole_luft_und_pollen():
 def hole_fcb_ticker(team_id):
     try:
         # OpenLigaDB für Schweizer Super League (ch1)
-        res = requests.get(f"https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
+        res = requests.get(f"https://api.openligadb.de/getmatchdata/ch1/2026", timeout=5).json()
         jetzt = datetime.now()
         for spiel in res:
             if team_id == spiel['team1']['teamID'] or team_id == spiel['team2']['teamID']:
@@ -80,10 +80,14 @@ if st.button('🔄 DATEN AKTUALISIEREN'):
 w = st.session_state.w
 if w:
     c1, c2 = st.columns(2)
-    c1.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-    c2.metric("Rhein", f"🌊 {w['rhein']}°C")
-    # Hier ist die Zeile nun direkt unter den Metriken platziert:
-    st.write(f"Aktuell: **{w['desc']}**")
+    # Spalte 1: Luft-Temperatur UND Beschreibung
+    with c1:
+        st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
+        st.write(f"Aktuell: **{w['desc']}**")
+    
+    # Spalte 2: Nur Rhein-Temperatur
+    with c2:
+        st.metric("Rhein", f"🌊 {w['rhein']}°C")
 
 # 2. Luftqualität & Pollen
 l = st.session_state.l
