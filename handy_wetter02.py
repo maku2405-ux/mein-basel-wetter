@@ -92,7 +92,7 @@ def hole_luft():
 st.markdown(
     """
     <h1 style='text-align:center;color:#00529F;'>
-        <img src='baslerstab' width='40' style='vertical-align:middle; margin-right:10px;'>
+        <img src='baslerstab.jpg' width='40' style='vertical-align:middle; margin-right:10px;'>
         Basel Dashboard
     </h1>
     """,
