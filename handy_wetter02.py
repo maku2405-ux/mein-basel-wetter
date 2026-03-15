@@ -33,47 +33,43 @@ def hole_luft_und_pollen():
 
 def hole_fussball_ticker(suche_name):
     try:
-        # Abruf der Saison 2025 (entspricht 2025/2026)
+        # Wir holen nur den AKTUELLEN Spieltag (Saison 2025)
+        # Die API liefert hier automatisch die Spiele rund um das aktuelle Datum
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
-        if not res:
-            return "Keine Spieldaten gefunden"
-            
+        
         jetzt = datetime.now()
-        zukuenftige_spiele = []
-
+        
         for spiel in res:
             t1_name = spiel['team1']['teamName']
             t2_name = spiel['team2']['teamName']
             
-            # Suche nach dem Teamnamen im Spiel
             if suche_name.lower() in t1_name.lower() or suche_name.lower() in t2_name.lower():
                 match_date = spiel['matchDateTime'].split(".")[0]
                 zeit = datetime.strptime(match_date, "%Y-%m-%dT%H:%M:%S")
+                t1_s, t2_s = spiel['team1']['shortName'], spiel['team2']['shortName']
+
+                # 1. LIVE-Check (Spiel läuft gerade oder heute)
+                if not spiel['matchIsFinished']:
+                    # Wenn das Spiel heute ist oder gerade läuft
+                    res_list = spiel['matchResults']
+                    if res_list:
+                        p1 = res_list[-1]['pointsTeam1']
+                        p2 = res_list[-1]['pointsTeam2']
+                        return f"🔴 LIVE: {t1_s} {p1}:{p2} {t2_s}"
+                    else:
+                        tag = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
+                        return f"⏳ {tag}: {t1_s} vs. {t2_s} ({zeit.strftime('%H:%M')} Uhr)"
                 
-                # 1. LIVE-Check
-                if not spiel['matchIsFinished'] and zeit <= jetzt:
-                    t1_short, t2_short = spiel['team1']['shortName'], spiel['team2']['shortName']
+                # 2. Letztes Spiel (falls Spieltag für dieses Team schon vorbei ist)
+                if spiel['matchIsFinished']:
                     res_list = spiel['matchResults']
                     p1 = res_list[-1]['pointsTeam1'] if res_list else 0
                     p2 = res_list[-1]['pointsTeam2'] if res_list else 0
-                    return f"🔴 LIVE: {t1_short} {p1}:{p2} {t2_short}"
-                
-                # 2. Zukünftige Spiele sammeln
-                if zeit > jetzt:
-                    zukuenftige_spiele.append(spiel)
+                    return f"FT: {t1_s} {p1}:{p2} {t2_s}"
 
-        if zukuenftige_spiele:
-            # Das nächste Spiel finden
-            naechstes = sorted(zukuenftige_spiele, key=lambda x: x['matchDateTime'])[0]
-            m_date = naechstes['matchDateTime'].split(".")[0]
-            zeit = datetime.strptime(m_date, "%Y-%m-%dT%H:%M:%S")
-            t1_s, t2_s = naechstes['team1']['shortName'], naechstes['team2']['shortName']
-            tag = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
-            return f"{tag}: {t1_s} vs. {t2_s} ({zeit.strftime('%H:%M')} Uhr)"
-
-        return "Keine weiteren Spiele geplant"
+        return "Kein Spiel an diesem Spieltag"
     except Exception:
-        return "Aktuell keine Daten"
+        return "Daten nicht verfügbar"
 
 # --- WAPPEN LADEN ---
 def hole_wappen():
