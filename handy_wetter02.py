@@ -1,6 +1,5 @@
 import streamlit as st
 import requests
-import pandas as pd
 from datetime import datetime
 
 # 1. Seiteneinstellungen
@@ -34,7 +33,7 @@ def wetter_beschreibung(code):
     return mapping.get(code, ("☁️", "Bedeckt"))
 
 # -------------------------
-# Datenabfrage
+# Datenabfrage (Wetter & Luft)
 # -------------------------
 
 def hole_wetter():
@@ -55,26 +54,37 @@ def hole_luft():
                 "birke": c.get("birch_pollen", 0), "gras": c.get("grass_pollen", 0)}
     except: return None
 
+# -------------------------
+# Fussball (Präzise Suche im aktuellen Spieltag)
+# -------------------------
+
 def hole_fussball_ticker(team_name):
     try:
-        res = requests.get("https://api.openligadb.de/getmatchdata/bsl/2025", timeout=10).json()
-        jetzt = datetime.now()
-        vergangene_spiele = []
-        for m in res:
-            match_date = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
-            if (team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']) and match_date <= jetzt:
-                vergangene_spiele.append(m)
+        # 1. Wir holen zuerst die Info, welcher Spieltag aktuell ist
+        group_res = requests.get("https://api.openligadb.de/getcurrentgroup/bsl").json()
+        spieltag = group_res['groupOrderID']
         
-        if vergangene_spiele:
-            m = vergangene_spiele[-1]
-            t1, t2 = m['team1']['shortName'], m['team2']['shortName']
-            res_list = m['matchResults']
-            if res_list:
-                r = res_list[0]
-                datum = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%d.%m.")
-                return f"{datum}: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
-        return "Keine aktuellen Resultate"
-    except: return "Daten nicht verfügbar"
+        # 2. Wir laden alle Spiele dieses Spieltags (Saison 2025)
+        url = f"https://api.openligadb.de/getmatchdata/bsl/2025/{spieltag}"
+        res = requests.get(url, timeout=10).json()
+        
+        for m in res:
+            if team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']:
+                t1, t2 = m['team1']['shortName'], m['team2']['shortName']
+                
+                # Wenn Tore vorhanden sind (Spiel läuft oder ist fertig)
+                if m['matchResults']:
+                    # Wir nehmen das Endergebnis (meist Typ ID 2) oder das aktuellste
+                    r = m['matchResults'][0]
+                    status = " (Endstand)" if m['matchIsFinished'] else " (LIVE)"
+                    return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}{status}"
+                else:
+                    # Wenn das Spiel noch nicht angepfiffen wurde
+                    zeit = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%H:%M")
+                    return f"{t1} vs. {t2} (Anpfiff {zeit} Uhr)"
+                    
+        return "Kein Spiel an diesem Spieltag"
+    except: return "Daten aktuell nicht verfügbar"
 
 # -------------------------
 # UI Dashboard
@@ -99,7 +109,7 @@ if st.session_state.w:
     with c2:
         st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
 
-# Pollen
+# Pollen & Luftqualität
 if st.session_state.l:
     l = st.session_state.l
     st.divider()
@@ -108,7 +118,6 @@ if st.session_state.l:
     cp1.write(f"Birke: {pollen_status(l['birke'])}")
     cp2.write(f"Gräser: {pollen_status(l['gras'])}")
 
-    # Trennlinie zu Luftqualität
     st.divider()
     st.write("💨 **Luftqualität**")
     cl1, cl2, cl3 = st.columns(3)
@@ -116,18 +125,6 @@ if st.session_state.l:
     cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
     cl3.write(f"PM 10: {luft_status(l['pm10'])}")
     
-    # Beschreibung zu Feinstaub
     st.write("") 
     st.caption("**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.")
-    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.")
-
-# Fussball
-st.divider()
-st.subheader("⚽ Fussball-Ticker")
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
-st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
-
-# --- FUSSZEILE (Erweitert um Air Quality Quelle) ---
-st.divider()
-st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Quellen: Open-Meteo Air Quality, Open-Meteo Weather, OpenLigaDB")
-st.caption("(C)2026 by M. Kunz")
+    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen),
