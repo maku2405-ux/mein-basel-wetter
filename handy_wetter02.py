@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luftqualität", page_icon="🇨🇭")
@@ -28,27 +28,22 @@ def hole_luft():
 
 def hole_fussball(team_suche):
     try:
-        url = "[api.openligadb.de](https://api.openligadb.de/getmatchdata/ch1/2025)"
+        # FEHLER BEHOBEN: URL war falsch formatiert
+        url = "https://api.openligadb.de/getmatchdata/ch1/2025"
         spiele = requests.get(url, timeout=5).json()
         jetzt_datum = datetime.now().strftime("%Y-%m-%d")
         
         naechstes = None
-        for m in spiele:  # Vorwärts statt rückwärts
+        for m in spiele:
             if team_suche in m["team1"]["teamName"] or team_suche in m["team2"]["teamName"]:
                 m_date = m["matchDateTime"].split('T')[0]
                 
-                # Spiel ist heute oder in der Zukunft
-                if m_date >= jetzt_datum:
-                    naechstes = m
-                    break  # Erstes zukünftiges Spiel gefunden
-                
-                # Oder: Spiel läuft noch (nicht beendet)
-                if not m.get("matchIsFinished", True):
+                # Spiel ist heute oder in der Zukunft oder läuft gerade
+                if m_date >= jetzt_datum or not m.get("matchIsFinished", True):
                     naechstes = m
                     break
         
-        if not naechstes:
-            return "Kein Spiel gefunden"
+        if not naechstes: return "Kein Spiel gefunden"
         
         m = naechstes
         t1, t2 = m["team1"]["shortName"], m["team2"]["shortName"]
@@ -63,10 +58,8 @@ def hole_fussball(team_suche):
         
         prefix = "Heute" if m_date == jetzt_datum else tag
         return f"{prefix}: {t1} vs. {t2} ({uhrzeit} Uhr)"
-        
-    except Exception as e:
-        return f"⚠️ Fehler: {str(e)}"
-
+    except:
+        return "⚠️ Daten aktuell nicht abrufbar"
 
 # 3. Anzeige
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🇨🇭 Basler Luftqualität</h1>", unsafe_allow_html=True)
@@ -95,4 +88,4 @@ st.subheader("⚽ Fussball-Ticker")
 st.write(f"🔵🔴 **FCB:** {st.session_state.fcb}")
 st.write(f"🟡⚫ **YB:** {st.session_state.yb}")
 
-st.caption(f"Update: {datetime.now().strftime('%H:%M')} | Open-Meteo & OpenLigaDB")
+st.caption(f"Update: {datetime.now().strftime('%H:%M')} | Daten: Open-Meteo & OpenLigaDB")
