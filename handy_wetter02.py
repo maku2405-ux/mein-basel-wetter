@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 
 # 1. Seiteneinstellungen
-st.set_page_config(page_title="Basler Luft & Rhein", page_icon="⟽")
+st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 def hole_wetter_und_rhein():
     try:
@@ -60,8 +60,19 @@ def hole_fcb_ticker(team_id):
         return "Daten konnten nicht geladen werden"
 
 # --- UI DESIGN ---
-# Titel mit Baslerstab (Symbol-Annäherung)
-st.markdown("<h1 style='text-align: center; color: #000000;'>⟽ Basel Dashboard ⟽</h1>", unsafe_allow_html=True)
+# Einbinden des echten Baslerstabs via HTML/IMG
+baslerstab_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Basel-Stadt-Anw.svg/40px-Basel-Stadt-Anw.svg.png"
+
+st.markdown(
+    f"""
+    <div style='display: flex; align-items: center; justify-content: center;'>
+        <img src='{baslerstab_url}' style='height: 40px; margin-right: 15px;'>
+        <h1 style='color: #000000; margin: 0;'>Basel Dashboard</h1>
+        <img src='{baslerstab_url}' style='height: 40px; margin-left: 15px;'>
+    </div>
+    """, 
+    unsafe_allow_html=True
+)
 
 # Initialisierung der Session State Daten
 if 'w' not in st.session_state:
