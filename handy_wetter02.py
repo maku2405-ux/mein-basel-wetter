@@ -1,27 +1,23 @@
 import streamlit as st
 import requests
 from datetime import datetime
+from PIL import Image
+from io import BytesIO
 
 # 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 def hole_wetter_und_rhein():
     try:
-        # Wetter & Rhein-Temperatur via Open-Meteo
         url = "https://api.open-meteo.com/v1/forecast?latitude=47.5584&longitude=7.5733&current=temperature_2m,weather_code&timezone=Europe%2FBerlin"
         res = requests.get(url, timeout=5).json()
-        
-        # Rhein-Temperatur (Simulation basierend auf kantonalen Werten)
         rhein_temp = 8.4  
-        
         curr = res['current']
         temp, code = curr['temperature_2m'], curr['weather_code']
-        
         emoji, desc = "☁️", "Bedeckt"
         if code == 0: emoji, desc = "☀️", "Sonnig"
         elif code in [1, 2, 3]: emoji, desc = "🌤️", "Leicht bewölkt"
         elif code in [51, 53, 55, 61, 63, 65]: emoji, desc = "🌧️", "Regen"
-        
         return {"temp": temp, "emoji": emoji, "desc": desc, "rhein": rhein_temp}
     except:
         return None
@@ -31,18 +27,12 @@ def hole_luft_und_pollen():
         url = "https://air-quality-api.open-meteo.com/v1/air-quality?latitude=47.5584&longitude=7.5733&current=pm10,ozone,birch_pollen,grass_pollen"
         res = requests.get(url, timeout=5).json()
         curr = res['current']
-        return {
-            "ozon": curr['ozone'], 
-            "pm10": curr['pm10'],
-            "birke": curr['birch_pollen'],
-            "gras": curr['grass_pollen']
-        }
+        return {"ozon": curr['ozone'], "pm10": curr['pm10'], "birke": curr['birch_pollen'], "gras": curr['grass_pollen']}
     except:
         return None
 
 def hole_fcb_ticker(team_id):
     try:
-        # OpenLigaDB für Schweizer Super League (ch1)
         res = requests.get(f"https://api.openligadb.de/getmatchdata/ch1/2026", timeout=5).json()
         jetzt = datetime.now()
         for spiel in res:
@@ -59,27 +49,36 @@ def hole_fcb_ticker(team_id):
     except:
         return "Daten konnten nicht geladen werden"
 
-# --- UI DESIGN ---
-# URL zum offiziellen Baslerstab (Wappen Basel-Stadt)
-wappen_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Wappen_Basel-Stadt.svg/200px-Wappen_Basel-Stadt.svg.png"
+# --- WAPPEN LADEN ---
+def hole_wappen():
+    try:
+        # Stabiler Link zum Basel-Stadt Wappen
+        url = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Wappen_Basel-Stadt.svg/250px-Wappen_Basel-Stadt.svg.png"
+        response = requests.get(url)
+        return Image.open(BytesIO(response.content))
+    except:
+        return None
 
-st.markdown(
-    f"""
-    <div style='display: flex; align-items: center; justify-content: center; gap: 20px;'>
-        <img src='{wappen_url}' width='50'>
-        <h1 style='color: #000000; margin: 0;'>Basel Dashboard</h1>
-        <img src='{wappen_url}' width='50'>
-    </div>
-    """, 
-    unsafe_allow_html=True
-)
+# --- UI DESIGN ---
+wappen = hole_wappen()
+
+if wappen:
+    col_t1, col_t2, col_t3 = st.columns([1, 3, 1])
+    with col_t1:
+        st.image(wappen, width=80)
+    with col_t2:
+        st.markdown("<h1 style='text-align: center; color: #000000; padding-top: 10px;'>Basel Dashboard</h1>", unsafe_allow_html=True)
+    with col_t3:
+        st.image(wappen, width=80)
+else:
+    st.markdown("<h1 style='text-align: center;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
 # Initialisierung der Session State Daten
 if 'w' not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fcb_ticker(128) # Basel
-    st.session_state.yb = hole_fcb_ticker(122)  # YB
+    st.session_state.fcb = hole_fcb_ticker(128)
+    st.session_state.yb = hole_fcb_ticker(122)
 
 if st.button('🔄 DATEN AKTUALISIEREN'):
     st.session_state.w = hole_wetter_und_rhein()
@@ -95,7 +94,6 @@ if w:
     with c1:
         st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
         st.write(f"Aktuell: **{w['desc']}**")
-    
     with c2:
         st.metric("Rhein", f"🌊 {w['rhein']}°C")
 
