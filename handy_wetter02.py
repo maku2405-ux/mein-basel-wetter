@@ -71,18 +71,13 @@ def hole_fussball_ticker(team_name):
         for m in res:
             if team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']:
                 t1, t2 = m['team1']['shortName'], m['team2']['shortName']
-                
-                # Wenn Tore vorhanden sind (Spiel läuft oder ist fertig)
                 if m['matchResults']:
-                    # Wir nehmen das Endergebnis (meist Typ ID 2) oder das aktuellste
                     r = m['matchResults'][0]
                     status = " (Endstand)" if m['matchIsFinished'] else " (LIVE)"
                     return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}{status}"
                 else:
-                    # Wenn das Spiel noch nicht angepfiffen wurde
                     zeit = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%H:%M")
                     return f"{t1} vs. {t2} (Anpfiff {zeit} Uhr)"
-                    
         return "Kein Spiel an diesem Spieltag"
     except: return "Daten aktuell nicht verfügbar"
 
@@ -99,8 +94,8 @@ if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.yb = hole_fussball_ticker("Young Boys")
 
 # Wetter & Rhein
-if st.session_state.w:
-    w = st.session_state.w
+w = st.session_state.w
+if w:
     rhein_e = rhein_emoji(w["rhein"])
     c1, c2 = st.columns(2)
     with c1:
@@ -110,8 +105,8 @@ if st.session_state.w:
         st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
 
 # Pollen & Luftqualität
-if st.session_state.l:
-    l = st.session_state.l
+l = st.session_state.l
+if l:
     st.divider()
     st.write("🌳 **Pollen**")
     cp1, cp2 = st.columns(2)
@@ -127,4 +122,15 @@ if st.session_state.l:
     
     st.write("") 
     st.caption("**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.")
-    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen),
+    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.")
+
+# Fussball
+st.divider()
+st.subheader("⚽ Fussball-Ticker")
+st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
+st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
+
+# --- FUSSZEILE ---
+st.divider()
+st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Quellen: Open-Meteo Air Quality, Open-Meteo Weather, OpenLigaDB")
+st.caption("(C)2026 by M. Kunz")
