@@ -182,7 +182,7 @@ if l:
         st.write(f"Birke: {pollen_status(l['birke'])}")
         st.write(f"Gräser: {pollen_status(l['gras'])}")
 
-    with c2:
+        st.divider()
 
         st.write("💨 **Luftqualität**")
 
@@ -193,6 +193,9 @@ if l:
 
         st.write(f"PM10: {luft_status(l['pm10'])}")
         st.caption("Gröbere Staubpartikel aus Verkehr und Staub")
+
+    with c2:
+        pass
 
 
 st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Basel App 2026")
