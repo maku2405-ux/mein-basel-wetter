@@ -2,23 +2,46 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-# Seiteneinstellungen
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 LAT = 47.5584
 LON = 7.5733
 
-# -----------------------
-# Hilfsfunktionen
-# -----------------------
 
-def pollen_farbe(wert):
+# -------------------------
+# Hilfsfunktionen
+# -------------------------
+
+def pollen_status(wert):
+
     if wert < 10:
         return "🟢 Niedrig"
     elif wert < 50:
         return "🟡 Achtung"
     else:
         return "🔴 Hoch"
+
+
+def luft_status(wert):
+
+    if wert < 40:
+        return f"🟢 {wert} (Gut)"
+    elif wert < 80:
+        return f"🟡 {wert} (Mittel)"
+    else:
+        return f"🔴 {wert} (Hoch)"
+
+
+def rhein_emoji(temp):
+
+    if temp < 18:
+        return "🥶"
+    elif 20 <= temp <= 22:
+        return "😊"
+    elif temp > 22:
+        return "🥵"
+    else:
+        return "🙂"
 
 
 def wetter_beschreibung(code):
@@ -37,9 +60,9 @@ def wetter_beschreibung(code):
         return "☁️", "Bedeckt"
 
 
-# -----------------------
+# -------------------------
 # Wetter + Rhein
-# -----------------------
+# -------------------------
 
 def hole_wetter_und_rhein():
 
@@ -52,17 +75,16 @@ def hole_wetter_und_rhein():
             "&timezone=Europe%2FBerlin"
         )
 
-        res = requests.get(url, timeout=10)
-        data = res.json()
+        res = requests.get(url, timeout=10).json()
 
-        curr = data["current"]
+        curr = res["current"]
 
         temp = curr["temperature_2m"]
         code = curr["weather_code"]
 
         emoji, desc = wetter_beschreibung(code)
 
-        # Rhein Temperatur (Fallback)
+        # Beispiel Rheinwert (falls keine Hydrodaten API)
         rhein_temp = 8.4
 
         return {
@@ -72,13 +94,13 @@ def hole_wetter_und_rhein():
             "rhein": rhein_temp
         }
 
-    except Exception:
+    except:
         return None
 
 
-# -----------------------
+# -------------------------
 # Luft + Pollen
-# -----------------------
+# -------------------------
 
 def hole_luft_und_pollen():
 
@@ -90,10 +112,9 @@ def hole_luft_und_pollen():
             "&current=pm10,ozone,birch_pollen,grass_pollen"
         )
 
-        res = requests.get(url, timeout=10)
-        data = res.json()
+        res = requests.get(url, timeout=10).json()
 
-        curr = data["current"]
+        curr = res["current"]
 
         return {
             "ozon": curr["ozone"],
@@ -102,29 +123,29 @@ def hole_luft_und_pollen():
             "gras": curr["grass_pollen"]
         }
 
-    except Exception:
+    except:
         return None
 
 
-# -----------------------
+# -------------------------
 # Fussball
-# -----------------------
+# -------------------------
 
-def hole_fcb_ticker(team_id):
+def hole_team_ticker(team_id):
 
     try:
 
-        url = "https://api.openligadb.de/getmatchdata/ch1/2025"
+        url = "https://api.openligadb.de/getmatchdata/ch1"
 
-        res = requests.get(url, timeout=10).json()
+        spiele = requests.get(url, timeout=10).json()
 
         jetzt = datetime.now()
 
-        for spiel in res:
+        for spiel in spiele:
 
             if (
-                team_id == spiel["team1"]["teamID"]
-                or team_id == spiel["team2"]["teamID"]
+                spiel["team1"]["teamID"] == team_id
+                or spiel["team2"]["teamID"] == team_id
             ):
 
                 zeit = datetime.strptime(
@@ -132,30 +153,35 @@ def hole_fcb_ticker(team_id):
                     "%Y-%m-%dT%H:%M:%S"
                 )
 
+                t1 = spiel["team1"]["shortName"]
+                t2 = spiel["team2"]["shortName"]
+
+                if spiel["matchIsFinished"] is False and spiel["matchResults"]:
+
+                    r = spiel["matchResults"][-1]
+
+                    return f"🔴 LIVE: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
+
                 if zeit.date() >= jetzt.date():
 
-                    t1 = spiel["team1"]["shortName"]
-                    t2 = spiel["team2"]["shortName"]
+                    prefix = (
+                        "Heute"
+                        if zeit.date() == jetzt.date()
+                        else zeit.strftime("%d.%m.")
+                    )
 
-                    if spiel["matchResults"] and not spiel["matchIsFinished"]:
-
-                        r = spiel["matchResults"][-1]
-
-                        return f"🔴 LIVE: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
-
-                    prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
-
-                    return f"{prefix}: {t1} vs {t2} ({zeit.strftime('%H:%M')} Uhr)"
+                    return f"{prefix}: {t1} vs {t2} ({zeit.strftime('%H:%M')})"
 
         return "Kein Spiel geplant"
 
-    except Exception:
+    except:
+
         return "Daten laden..."
 
 
-# -----------------------
+# -------------------------
 # UI
-# -----------------------
+# -------------------------
 
 st.markdown(
     "<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>",
@@ -168,17 +194,19 @@ if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
 
-    st.session_state.fcb = hole_fcb_ticker(128)
-    st.session_state.yb = hole_fcb_ticker(122)
+    st.session_state.fcb = hole_team_ticker(128)
+    st.session_state.yb = hole_team_ticker(122)
 
 
-# -----------------------
-# Wetter
-# -----------------------
+# -------------------------
+# Wetter Anzeige
+# -------------------------
 
 w = st.session_state.w
 
 if w:
+
+    rhein_e = rhein_emoji(w["rhein"])
 
     c1, c2 = st.columns(2)
 
@@ -190,13 +218,13 @@ if w:
 
     c2.metric(
         "Rhein",
-        f"🌊 {w['rhein']}°C"
+        f"{rhein_e} {w['rhein']}°C"
     )
 
 
-# -----------------------
-# Luftqualität + Pollen
-# -----------------------
+# -------------------------
+# Luftqualität
+# -------------------------
 
 l = st.session_state.l
 
@@ -210,24 +238,20 @@ if l:
 
         st.write("🌳 **Pollen**")
 
-        st.write(f"Birke: {pollen_farbe(l['birke'])}")
-        st.write(f"Gräser: {pollen_farbe(l['gras'])}")
+        st.write(f"Birke: {pollen_status(l['birke'])}")
+        st.write(f"Gräser: {pollen_status(l['gras'])}")
 
     with col2:
 
         st.write("💨 **Luftqualität**")
 
-        if l["ozon"] < 80:
-            st.write(f"Ozon: 🟢 {l['ozon']} (Gut)")
-        elif l["ozon"] < 120:
-            st.write(f"Ozon: 🟡 {l['ozon']} (Mittel)")
-        else:
-            st.write(f"Ozon: 🔴 {l['ozon']} (Hoch)")
+        st.write(f"Ozon: {luft_status(l['ozon'])}")
+        st.write(f"Feinstaub PM10: {luft_status(l['pm10'])}")
 
 
-# -----------------------
+# -------------------------
 # Fussball
-# -----------------------
+# -------------------------
 
 st.divider()
 
