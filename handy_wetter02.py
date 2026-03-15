@@ -61,4 +61,36 @@ def hole_luft():
         return {
             "ozon": c.get("ozone", 0),
             "pm25": c.get("pm2_5", 0),
-            "pm10": c.get("
+            "pm10": c.get("pm10", 0),
+            "birke": c.get("birch_pollen", 0),
+            "gras": c.get("grass_pollen", 0)
+        }
+    except:
+        return None
+
+# ---------------------------------------------------------
+# Fussball (API-Football)
+# ---------------------------------------------------------
+
+TEAM_BASEL = 256
+TEAM_YB = 257
+
+def hole_fussball_ticker(team_id):
+    try:
+        url = "https://v3.football.api-sports.io/fixtures"
+        headers = {
+            "x-rapidapi-key": API_FOOTBALL_KEY,
+            "x-rapidapi-host": "v3.football.api-sports.io"
+        }
+
+        heute = datetime.now().strftime('%Y-%m-%d')
+
+        # 1) HEUTIGES SPIEL
+        params_today = {
+            "team": team_id,
+            "date": heute,
+            "timezone": "Europe/Zurich"
+        }
+
+        r_today = requests.get(url, headers=headers, params=params_today, timeout=10).json()
+        games_today = r_today
