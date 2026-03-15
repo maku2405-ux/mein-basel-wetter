@@ -72,7 +72,6 @@ def hole_luft():
 # Fussball (API-Football)
 # ---------------------------------------------------------
 
-# Team-IDs (API-Football)
 TEAM_BASEL = 256
 TEAM_YB = 257
 
@@ -104,71 +103,11 @@ def hole_fussball_ticker(team_id):
         goals_home = m["goals"]["home"]
         goals_away = m["goals"]["away"]
 
-        # Anpfiff
         if status == "NS":
             zeit = m["fixture"]["date"][11:16]
             return f"{home} vs. {away} (Anpfiff {zeit})"
 
-        # Live
         if status in ["1H", "2H", "HT"]:
             return f"{home} {goals_home}:{goals_away} {away} 🟢 LIVE"
 
-        # Endstand
-        if status == "FT":
-            return f"{home} {goals_home}:{goals_away} {away} (Endstand)"
-
-        return "Spielstatus unbekannt."
-
-    except Exception as e:
-        return "Daten nicht erreichbar."
-
-# ---------------------------------------------------------
-# UI Dashboard
-# ---------------------------------------------------------
-
-st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
-
-if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
-    st.session_state.w = hole_wetter()
-    st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball_ticker(TEAM_BASEL)
-    st.session_state.yb = hole_fussball_ticker(TEAM_YB)
-
-# Wetter
-w = st.session_state.w
-if w:
-    rhein_e = rhein_emoji(w["rhein"])
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-        st.write(f"Aktuell: **{w['desc']}**")
-    with c2:
-        st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
-
-# Umwelt
-st.divider()
-st.subheader("🌳 Umwelt & Luft")
-
-l = st.session_state.l
-if l:
-    st.write("**Aktuelle Werte:**")
-    cp1, cp2 = st.columns(2)
-    cp1.write(f"Birke: {pollen_status(l['birke'])}")
-    cp2.write(f"Gräser: {pollen_status(l['gras'])}")
-
-    st.write("")
-    cl1, cl2, cl3 = st.columns(3)
-    cl1.write(f"Ozon: {luft_status(l['ozon'])}")
-    cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
-    cl3.write(f"PM 10: {luft_status(l['pm10'])}")
-else:
-    st.warning("Umweltdaten konnten nicht geladen werden.")
-
-st.write("") 
-st.markdown("<small>**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>", unsafe_allow_html=True)
-st.markdown("<small>**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>", unsafe_allow_html=True)
-
-# Fussball
-st.divider()
-st.subheader("⚽ Fussball-Ticker (Live)")
-st.write(f"🔴🔵 **
+        if status
