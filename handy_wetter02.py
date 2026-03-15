@@ -3,7 +3,7 @@ import requests
 from datetime import datetime
 
 # 1. Seiteneinstellungen
-st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
+st.set_page_config(page_title="Basler Luft & Rhein", page_icon="⟽")
 
 def hole_wetter_und_rhein():
     try:
@@ -60,7 +60,8 @@ def hole_fcb_ticker(team_id):
         return "Daten konnten nicht geladen werden"
 
 # --- UI DESIGN ---
-st.markdown("<h1 style='text-align: center; color: #00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
+# Titel mit Baslerstab (Symbol-Annäherung)
+st.markdown("<h1 style='text-align: center; color: #000000;'>⟽ Basel Dashboard ⟽</h1>", unsafe_allow_html=True)
 
 # Initialisierung der Session State Daten
 if 'w' not in st.session_state:
@@ -80,12 +81,10 @@ if st.button('🔄 DATEN AKTUALISIEREN'):
 w = st.session_state.w
 if w:
     c1, c2 = st.columns(2)
-    # Spalte 1: Luft-Temperatur UND Beschreibung
     with c1:
         st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
         st.write(f"Aktuell: **{w['desc']}**")
     
-    # Spalte 2: Nur Rhein-Temperatur
     with c2:
         st.metric("Rhein", f"🌊 {w['rhein']}°C")
 
