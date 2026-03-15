@@ -34,7 +34,7 @@ def wetter_beschreibung(code):
     return mapping.get(code, ("☁️", "Bedeckt"))
 
 # -------------------------
-# Datenabfrage (Wetter & Luft)
+# Datenabfrage
 # -------------------------
 
 def hole_wetter():
@@ -55,33 +55,23 @@ def hole_luft():
                 "birke": c.get("birch_pollen", 0), "gras": c.get("grass_pollen", 0)}
     except: return None
 
-# -------------------------
-# Fussball (Korrigiert auf bsl / 2025)
-# -------------------------
-
-def hole_letztes_spiel(team_name):
+def hole_fussball_ticker(team_name):
     try:
-        # Abfrage der Swiss Super League (bsl) für die aktuelle Saison 2025
-        url = "https://api.openligadb.de/getmatchdata/bsl/2025"
-        res = requests.get(url, timeout=10).json()
-        
-        # Wir suchen das aktuellste Spiel des Teams (das letzte, das ein Ergebnis hat)
-        gespielte_spiele = [s for s in res if (team_name in s['team1']['teamName'] or team_name in s['team2']['teamName']) and s['matchIsFinished']]
-        
-        if gespielte_spiele:
-            letztes = gespielte_spiele[-1]
-            t1 = letztes['team1']['shortName']
-            t2 = letztes['team2']['shortName']
-            ergebnis = letztes['matchResults'][0]
-            datum = datetime.strptime(letztes['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%d.%m.")
-            return f"{datum}: {t1} {ergebnis['pointsTeam1']}:{ergebnis['pointsTeam2']} {t2}"
-        
-        return "Keine aktuellen Ergebnisse gefunden"
-    except:
-        return "Daten aktuell nicht verfügbar"
+        # Suche in der Super League (bsl) Saison 2025
+        res = requests.get("https://api.openligadb.de/getmatchdata/bsl/2025", timeout=10).json()
+        # Wir filtern alle beendeten Spiele des Teams und nehmen das letzte
+        matches = [m for m in res if (team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']) and m['matchIsFinished']]
+        if matches:
+            m = matches[-1]
+            t1, t2 = m['team1']['shortName'], m['team2']['shortName']
+            r = m['matchResults'][0]
+            datum = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%d.%m.")
+            return f"{datum}: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
+        return "Keine aktuellen Resultate"
+    except: return "Daten nicht verfügbar"
 
 # -------------------------
-# UI
+# UI Dashboard
 # -------------------------
 
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
@@ -89,39 +79,45 @@ st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboar
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.fcb_info = hole_letztes_spiel("Basel")
-    st.session_state.yb_info = hole_letztes_spiel("Young Boys")
+    st.session_state.fcb = hole_fussball_ticker("Basel")
+    st.session_state.yb = hole_fussball_ticker("Young Boys")
 
-# Wetter Anzeige
-w = st.session_state.w
-if w:
-    rhein_e = rhein_emoji(w["rhein"])
+# Wetter & Rhein
+if st.session_state.w:
+    w = st.session_state.w
     c1, c2 = st.columns(2)
     with c1:
         st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
         st.write(f"**{w['desc']}**")
     with c2:
-        st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
+        st.metric("Rhein", f"{rhein_emoji(w['rhein'])} {w['rhein']}°C")
 
-# Luft & Pollen
-l = st.session_state.l
-if l:
+# Pollen
+if st.session_state.l:
+    l = st.session_state.l
     st.divider()
-    cl1, cl2 = st.columns(2)
-    with cl1:
-        st.write("🌳 **Pollen**")
-        st.write(f"Birke: {pollen_status(l['birke'])}")
-        st.write(f"Gräser: {pollen_status(l['gras'])}")
-    with cl2:
-        st.write("💨 **Luftqualität**")
-        st.write(f"Ozon: {luft_status(l['ozon'])}")
-        st.write(f"PM10: {luft_status(l['pm10'])}")
+    st.write("🌳 **Pollen**")
+    cp1, cp2 = st.columns(2)
+    cp1.write(f"Birke: {pollen_status(l['birke'])}")
+    cp2.write(f"Gräser: {pollen_status(l['gras'])}")
 
-# Fussball Sektion
+    # Trennlinie zu Luftqualität
+    st.divider()
+    st.write("💨 **Luftqualität**")
+    cl1, cl2, cl3 = st.columns(3)
+    cl1.write(f"Ozon: {luft_status(l['ozon'])}")
+    cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
+    cl3.write(f"PM 10: {luft_status(l['pm10'])}")
+    
+    # Beschreibung zu Feinstaub
+    st.caption("**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.")
+    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.")
+
+# Fussball
 st.divider()
-st.subheader("⚽ Fussball-Ticker (Super League)")
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb_info}")
-st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb_info}")
+st.subheader("⚽ Fussball-Ticker")
+st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
+st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
 
 # --- FUSSZEILE ---
 st.divider()
