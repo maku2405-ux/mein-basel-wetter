@@ -49,16 +49,16 @@ def wetter_beschreibung(code):
     if code == 0:
         return "☀️", "Sonnig"
 
-    if code in [1,2,3]:
+    if code in [1, 2, 3]:
         return "🌤️", "Leicht bewölkt"
 
-    if code in [45,48]:
+    if code in [45, 48]:
         return "🌫️", "Neblig"
 
-    if code in [51,53,55,61,63,65]:
+    if code in [51, 53, 55, 61, 63, 65]:
         return "🌧️", "Regen"
 
-    if code in [71,73,75]:
+    if code in [71, 73, 75]:
         return "❄️", "Schnee"
 
     return "☁️", "Bedeckt"
@@ -94,7 +94,6 @@ def hole_wetter():
         }
 
     except:
-
         return None
 
 
@@ -106,7 +105,7 @@ def hole_luft():
 
     try:
 
-        url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&current=pm1,pm2_5,pm10,ozone,birch_pollen,grass_pollen"
+        url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&current=pm2_5,pm10,ozone,birch_pollen,grass_pollen"
 
         r = requests.get(url, timeout=10).json()
 
@@ -114,18 +113,16 @@ def hole_luft():
 
         return {
 
-            "ozon": c.get("ozone",0),
+            "ozon": c.get("ozone", 0),
 
-            "pm1": c.get("pm1",0),
-            "pm25": c.get("pm2_5",0),
-            "pm10": c.get("pm10",0),
+            "pm25": c.get("pm2_5", 0),
+            "pm10": c.get("pm10", 0),
 
-            "birke": c.get("birch_pollen",0),
-            "gras": c.get("grass_pollen",0)
+            "birke": c.get("birch_pollen", 0),
+            "gras": c.get("grass_pollen", 0)
         }
 
     except:
-
         return None
 
 
@@ -160,14 +157,13 @@ def hole_teamspiel(teamname):
 
                 if zeit.date() >= jetzt.date():
 
-                    prefix = "Heute" if zeit.date()==jetzt.date() else zeit.strftime("%d.%m.")
+                    prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
 
                     return f"{prefix}: {t1} vs {t2} ({zeit.strftime('%H:%M')})"
 
         return "Kein Spiel geplant"
 
     except:
-
         return "Ticker lädt..."
 
 
@@ -175,7 +171,7 @@ def hole_teamspiel(teamname):
 # UI
 # -------------------------
 
-st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>",unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
 
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
@@ -197,7 +193,7 @@ if w:
 
     rhein_e = rhein_emoji(w["rhein"])
 
-    c1,c2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
     c1.metric(
         "Luft",
@@ -221,7 +217,7 @@ if l:
 
     st.divider()
 
-    c1,c2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
     with c1:
 
@@ -235,8 +231,6 @@ if l:
         st.write("💨 **Luftqualität**")
 
         st.write(f"Ozon: {luft_status(l['ozon'])}")
-
-        st.write(f"Feinstaub PM1: {luft_status(l['pm1'])}")
         st.write(f"Feinstaub PM2.5: {luft_status(l['pm25'])}")
         st.write(f"Feinstaub PM10: {luft_status(l['pm10'])}")
 
