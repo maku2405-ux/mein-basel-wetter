@@ -107,70 +107,18 @@ def hole_luft():
         return None
 
 # ---------------------------------------------------------
-# Titel mit Baslerstab
+# Titel mit 🇨🇭 + Baslerstab
 # ---------------------------------------------------------
 st.markdown(
     f"""
     <h1 style='text-align:center;color:#00529F;'>
+        🇨🇭
         <img src="data:image/jpeg;base64,{baselstab_b64}" width="40"
-             style="vertical-align:middle; margin-right:10px;">
+             style="vertical-align:middle; margin-left:10px; margin-right:10px;">
         Basel Dashboard
     </h1>
     """,
     unsafe_allow_html=True
 )
 
-# ---------------------------------------------------------
-# Daten laden
-# ---------------------------------------------------------
-if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
-    st.session_state.w = hole_wetter()
-    st.session_state.l = hole_luft()
-
-w = st.session_state.get("w")
-if w:
-    rhein_e = rhein_emoji(w["rhein"])
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Luft", "{} {}°C".format(w["emoji"], w["temp"]))
-        st.write("Aktuell: <b>{}</b>".format(w["desc"]), unsafe_allow_html=True)
-    with c2:
-        st.metric("Rhein", "{} {}°C".format(rhein_e, w["rhein"]))
-
-st.divider()
-st.subheader("🌳 Umwelt & Luft")
-
-l = st.session_state.get("l")
-if l:
-    st.write("**Aktuelle Werte:**")
-    cp1, cp2 = st.columns(2)
-    cp1.write("Birke: {}".format(pollen_status(l["birke"])))
-    cp2.write("Gräser: {}".format(pollen_status(l["gras"])))
-
-    st.write("")
-    cl1, cl2, cl3 = st.columns(3)
-    cl1.write("Ozon: {}".format(luft_status(l["ozon"])))
-    cl2.write("PM 2.5: {}".format(luft_status(l["pm25"])))
-    cl3.write("PM 10: {}".format(luft_status(l["pm10"])))
-else:
-    st.warning("Umweltdaten konnten nicht geladen werden.")
-
-st.write("")
-st.markdown(
-    "<small><b>PM 2.5:</b> Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<small><b>PM 10:</b> Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>",
-    unsafe_allow_html=True
-)
-
-st.divider()
-tz_ch = pytz.timezone("Europe/Zurich")
-jetzt_ch = datetime.now(tz_ch).strftime("%H:%M")
-
-st.caption(
-    "Stand: {} | Quellen: Open‑Meteo (Wetter & Luftqualität), "
-    "Rheintemperatur: Messstation Basel (manuell eingetragen)".format(jetzt_ch)
-)
-st.caption("(C)2026 by M. Kunz")
+# ------------------------------------------------
