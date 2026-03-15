@@ -45,7 +45,6 @@ def hole_wetter():
         r = requests.get(url, timeout=10).json()
         c = r["current"]
         emoji, desc = wetter_beschreibung(c["weather_code"])
-        # Rhein-Temperatur hier statisch gelassen, da kein Sensor-Link vorliegt
         return {"temp": c["temperature_2m"], "emoji": emoji, "desc": desc, "rhein": 8.4}
     except: return None
 
@@ -65,10 +64,7 @@ def hole_luft():
 def hole_fussball_ticker(team_name):
     try:
         headers = {"X-Auth-Token": API_TOKEN}
-        # Wir filtern direkt in der API-Anfrage nach dem heutigen Datum
         heute = datetime.now().strftime('%Y-%m-%d')
-        
-        # Schweizer Super League (ID 2073)
         url = f"https://api.football-data.org/v4/competitions/2073/matches"
         params = {"dateFrom": heute, "dateTo": heute}
         
@@ -76,10 +72,9 @@ def hole_fussball_ticker(team_name):
         matches = res.get('matches', [])
         
         if not matches:
-            return "Heute kein Super League Spiel angesetzt."
+            return "Heute keine Spiele in der Super League."
 
         for m in matches:
-            # Wir prüfen alle Namensvarianten (Vollname und Kurzname)
             h_name = m['homeTeam']['name'] or ""
             h_short = m['homeTeam']['shortName'] or ""
             a_name = m['awayTeam']['name'] or ""
@@ -88,7 +83,6 @@ def hole_fussball_ticker(team_name):
             if (team_name.lower() in h_name.lower() or team_name.lower() in h_short.lower() or 
                 team_name.lower() in a_name.lower() or team_name.lower() in a_short.lower()):
                 
-                # Zeit UTC -> Schweiz
                 utc_time = datetime.strptime(m['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
                 local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Europe/Zurich'))
                 zeit_str = local_time.strftime("%H:%M")
@@ -96,7 +90,6 @@ def hole_fussball_ticker(team_name):
                 status = m['status']
                 s1 = m['score']['fullTime']['home']
                 s2 = m['score']['fullTime']['away']
-                
                 t1_display = h_short or h_name
                 t2_display = a_short or a_name
 
@@ -117,14 +110,13 @@ def hole_fussball_ticker(team_name):
 
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
-# Button zum manuellen Aktualisieren
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
     st.session_state.fcb = hole_fussball_ticker("Basel")
     st.session_state.yb = hole_fussball_ticker("Young Boys")
 
-# Wetter & Rhein
+# --- Wetter & Rhein ---
 w = st.session_state.w
 if w:
     rhein_e = rhein_emoji(w["rhein"])
@@ -135,23 +127,31 @@ if w:
     with c2:
         st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
 
-# Pollen & Luftqualität
+# --- Pollen & Luftqualität ---
+st.divider()
+st.subheader("🌳 Umwelt & Luft")
+
 l = st.session_state.l
 if l:
-    st.divider()
-    st.write("🌳 **Pollen**")
+    st.write("**Aktuelle Werte:**")
     cp1, cp2 = st.columns(2)
     cp1.write(f"Birke: {pollen_status(l['birke'])}")
     cp2.write(f"Gräser: {pollen_status(l['gras'])}")
 
-    st.divider()
-    st.write("💨 **Luftqualität**")
+    st.write("")
     cl1, cl2, cl3 = st.columns(3)
     cl1.write(f"Ozon: {luft_status(l['ozon'])}")
     cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
     cl3.write(f"PM 10: {luft_status(l['pm10'])}")
+else:
+    st.warning("Umweltdaten konnten nicht geladen werden.")
 
-# Fussball-Ticker
+# --- DIESE ZEILEN SIND JETZT IMMER SICHTBAR ---
+st.write("") 
+st.markdown("<small>**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>", unsafe_allow_html=True)
+st.markdown("<small>**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>", unsafe_allow_html=True)
+
+# --- Fussball-Ticker ---
 st.divider()
 st.subheader("⚽ Fussball-Ticker (Live)")
 st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
