@@ -7,15 +7,11 @@ st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 def hole_wetter_und_rhein():
     try:
-        # Wetter & Rhein-Temperatur via Open-Meteo & Kantonsdaten
-        # Wir nutzen eine Station nahe dem Rhein für präzise Werte
         url = "https://api.open-meteo.com/v1/forecast?latitude=47.5584&longitude=7.5733&current=temperature_2m,weather_code&timezone=Europe%2FBerlin"
         res = requests.get(url, timeout=5).json()
         
-        # Rhein-Temperatur (Simulation basierend auf kantonalen Durchschnittswerten für März, 
-        # da direkte API-Anbindung an kantonale Hydrometrie oft Token benötigt)
-        # Für eine echte Live-Anbindung an die Schifflände nutzen wir hier einen stabilen Proxy:
-        rhein_temp = 8.4  # Aktueller Messwert Basel Rheinhalle (März Durchschnitt)
+        # Rhein-Temperatur Simulation (Basel Rheinhalle)
+        rhein_temp = 8.4  
         
         curr = res['current']
         temp, code = curr['temperature_2m'], curr['weather_code']
@@ -64,16 +60,18 @@ st.markdown("<h1 style='text-align: center; color: #00529F;'>🏙️ Basel Dashb
 if st.button('🔄 DATEN AKTUALISIEREN') or 'w' not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fcb_ticker(128) # Basel
-    st.session_state.yb = hole_fcb_ticker(122)  # YB
+    st.session_state.fcb = hole_fcb_ticker(128)
+    st.session_state.yb = hole_fcb_ticker(122)
 
-# 1. Wetter & Rhein
+# 1. Wetter & Rhein (Korrigiertes Layout)
 w = st.session_state.w
 if w:
     c1, c2 = st.columns(2)
-    c1.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-    c2.metric("Rhein", f"🌊 {w['rhein']}°C")
-    st.write(f"Aktuell: **{w['desc']}**")
+    with c1:
+        st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
+        st.write(f"**{w['desc']}**")  # Beschreibung direkt unter Metric
+    with c2:
+        st.metric("Rhein", f"🌊 {w['rhein']}°C")
 
 # 2. Luftqualität & Pollen
 l = st.session_state.l
