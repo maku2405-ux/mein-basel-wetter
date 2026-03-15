@@ -82,6 +82,7 @@ if w:
     c1, c2 = st.columns(2)
     c1.metric("Luft", f"{w['emoji']} {w['temp']}°C")
     c2.metric("Rhein", f"🌊 {w['rhein']}°C")
+    # Hier ist die Zeile nun direkt unter den Metriken platziert:
     st.write(f"Aktuell: **{w['desc']}**")
 
 # 2. Luftqualität & Pollen
