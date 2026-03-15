@@ -139,5 +139,10 @@ st.markdown(
 st.divider()
 tz_ch = pytz.timezone("Europe/Zurich")
 jetzt_ch = datetime.now(tz_ch).strftime("%H:%M")
-st.caption("Stand: {} | Quellen: Open-Meteo".format(jetzt_ch))
+
+st.caption(
+    "Stand: {} | Quellen: Open‑Meteo (Wetter & Luftqualität), "
+    "Rheintemperatur: Messstation Basel (manuell eingetragen)".format(jetzt_ch)
+)
 st.caption("(C)2026 by M. Kunz")
+
