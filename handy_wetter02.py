@@ -107,16 +107,19 @@ def hole_luft():
         return None
 
 # ---------------------------------------------------------
-# Titel mit 🇨🇭 + Baslerstab direkt nebeneinander
+# Titel mit 🇨🇭 + Baslerstab perfekt nebeneinander
 # ---------------------------------------------------------
 st.markdown(
     f"""
-    <h1 style='text-align:center;color:#00529F;'>
-        <span style="font-size:34px; vertical-align:middle;">🇨🇭</span>
-        <img src="data:image/jpeg;base64,{baselstab_b64}" width="40"
-             style="vertical-align:middle; margin-left:2px; margin-right:12px;">
-        Basel Dashboard
-    </h1>
+    <div style='text-align:center; margin-bottom:10px;'>
+        <div style='display:inline-flex; align-items:center; gap:6px;'>
+            <span style="font-size:34px; line-height:1;">🇨🇭</span>
+            <img src="data:image/jpeg;base64,{baselstab_b64}" width="40" style="line-height:1;">
+        </div>
+        <div style='font-size:32px; color:#00529F; margin-top:6px; font-weight:600;'>
+            Basel Dashboard
+        </div>
+    </div>
     """,
     unsafe_allow_html=True
 )
