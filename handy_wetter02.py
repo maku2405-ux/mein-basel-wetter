@@ -90,9 +90,15 @@ def hole_luft():
         return None
 
 st.markdown(
-    "<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>",
+    """
+    <h1 style='text-align:center;color:#00529F;'>
+        <img src='basel-landschaft-cantons-of-switzerland-flag-png-favpng-09xqiRwFy1qEn5CiENpXMfQiK_t.jpg' width='40' style='vertical-align:middle; margin-right:10px;'>
+        Basel Dashboard
+    </h1>
+    """,
     unsafe_allow_html=True
 )
+
 
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
