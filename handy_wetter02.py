@@ -60,17 +60,15 @@ def hole_luft():
 
 
 # -----------------------------
-# Fussball (Super League)
+# Fussballspiele
 # -----------------------------
 def hole_fussball(team_suche):
     try:
-
         url = "https://api.openligadb.de/getmatchdata/ch1/2025"
         spiele = requests.get(url, timeout=5).json()
 
         jetzt = datetime.now()
-
-        passende_spiele = []
+        kommende_spiele = []
 
         for m in spiele:
 
@@ -81,35 +79,27 @@ def hole_fussball(team_suche):
 
                 match_time = datetime.fromisoformat(m["matchDateTime"])
 
-                passende_spiele.append((match_time, m))
+                # nur zukünftige Spiele berücksichtigen
+                if match_time >= jetzt:
+                    kommende_spiele.append((match_time, m))
 
-        if not passende_spiele:
-            return "Kein Spiel gefunden"
+        if not kommende_spiele:
+            return "Kein kommendes Spiel"
 
         # nach Datum sortieren
-        passende_spiele.sort(key=lambda x: x[0])
+        kommende_spiele.sort(key=lambda x: x[0])
 
-        # nächstes Spiel suchen
-        for match_time, m in passende_spiele:
+        match_time, m = kommende_spiele[0]
 
-            if match_time >= jetzt or not m["matchIsFinished"]:
+        t1_short = m["team1"]["shortName"]
+        t2_short = m["team2"]["shortName"]
 
-                t1_short = m["team1"]["shortName"]
-                t2_short = m["team2"]["shortName"]
+        datum = match_time.strftime("%d.%m.")
+        uhrzeit = match_time.strftime("%H:%M")
 
-                datum = match_time.strftime("%d.%m.")
-                uhrzeit = match_time.strftime("%H:%M")
+        prefix = "Heute" if datum == jetzt.strftime("%d.%m.") else datum
 
-                # LIVE oder Resultat
-                if m["matchResults"]:
-                    r = m["matchResults"][-1]
-                    return f"{t1_short} {r['pointsTeam1']}:{r['pointsTeam2']} {t2_short}"
-
-                prefix = "Heute" if datum == jetzt.strftime("%d.%m.") else datum
-
-                return f"{prefix}: {t1_short} vs. {t2_short} ({uhrzeit} Uhr)"
-
-        return "Kein kommendes Spiel"
+        return f"{prefix}: {t1_short} vs. {t2_short} ({uhrzeit} Uhr)"
 
     except:
         return "⚠️ API Problem"
@@ -152,7 +142,7 @@ if w:
 
 
 # -----------------------------
-# Luftqualität
+# Luftqualität anzeigen
 # -----------------------------
 if l:
 
@@ -170,7 +160,7 @@ if l:
 
 
 # -----------------------------
-# Fussball
+# Fussball-Ticker
 # -----------------------------
 st.divider()
 st.subheader("⚽ Fussball-Ticker")
