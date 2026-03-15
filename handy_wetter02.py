@@ -210,8 +210,8 @@ st.divider()
 
 # Letzte Spiele FC Basel
 st.write("**FC Basel**")
-st.write("Letztes Spiel: FC Basel 2:1 Servette FC")
+st.write("Letztes Spiel: FC Basel 2:1 FC Zürich")
 
 # Letzte Spiele BSC Young Boys 
 st.write("**BSC Young Boys**")
-st.write("Letztes Spiel: BSC Young Boys 3:1 FC Zürich")
+st.write("Letztes Spiel: BSC Young Boys 3:1 FC St. Gallen")
