@@ -60,15 +60,23 @@ def hole_fcb_ticker(team_id):
         return "Daten konnten nicht geladen werden"
 
 # --- UI DESIGN ---
-# Einbinden des echten Baslerstabs via HTML/IMG
-baslerstab_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Basel-Stadt-Anw.svg/40px-Basel-Stadt-Anw.svg.png"
+# Der Baslerstab als direkt eingebetteter SVG-Code (funktioniert immer)
+baslerstab_svg = """
+<svg width="40" height="40" viewBox="0 0 300 450" xmlns="http://www.w3.org/2000/svg">
+    <path d="M150 0 L150 450 M150 380 L80 450 M150 380 L220 450 M150 0 C 80 0, 20 60, 20 130 C 20 190, 60 230, 110 245 L110 380 L190 380 L190 245 C 240 230, 280 190, 280 130 C 280 60, 220 0, 150 0" 
+    fill="black" stroke="black" stroke-width="10"/>
+    <rect x="135" y="50" width="30" height="15" fill="white"/>
+    <rect x="135" y="100" width="30" height="15" fill="white"/>
+    <rect x="135" y="150" width="30" height="15" fill="white"/>
+</svg>
+"""
 
 st.markdown(
     f"""
     <div style='display: flex; align-items: center; justify-content: center;'>
-        <img src='{baslerstab_url}' style='height: 40px; margin-right: 15px;'>
+        <div style='width: 40px; height: 40px; margin-right: 15px;'>{baslerstab_svg}</div>
         <h1 style='color: #000000; margin: 0;'>Basel Dashboard</h1>
-        <img src='{baslerstab_url}' style='height: 40px; margin-left: 15px;'>
+        <div style='width: 40px; height: 40px; margin-left: 15px;'>{baslerstab_svg}</div>
     </div>
     """, 
     unsafe_allow_html=True
