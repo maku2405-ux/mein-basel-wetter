@@ -127,47 +127,6 @@ def hole_luft():
 
 
 # -------------------------
-# Fussball Ticker
-# -------------------------
-
-def hole_teamspiel(teamname):
-
-    try:
-
-        url = "https://www.openligadb.de/api/getmatchdata/bl1/2025"
-
-        spiele = requests.get(url, timeout=10).json()
-
-        jetzt = datetime.now()
-
-        for s in spiele:
-
-            t1 = s["team1"]["teamName"]
-            t2 = s["team2"]["teamName"]
-
-            if teamname in t1 or teamname in t2:
-
-                zeit = datetime.fromisoformat(s["matchDateTime"])
-
-                if not s["matchIsFinished"] and s["matchResults"]:
-
-                    r = s["matchResults"][-1]
-
-                    return f"🔴 LIVE: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
-
-                if zeit.date() >= jetzt.date():
-
-                    prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
-
-                    return f"{prefix}: {t1} vs {t2} ({zeit.strftime('%H:%M')})"
-
-        return "Kein Spiel geplant"
-
-    except:
-        return "Ticker lädt..."
-
-
-# -------------------------
 # UI
 # -------------------------
 
@@ -178,9 +137,6 @@ if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
 
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-
-    st.session_state.fcb = hole_teamspiel("Basel")
-    st.session_state.yb = hole_teamspiel("Young Boys")
 
 
 # -------------------------
@@ -231,20 +187,10 @@ if l:
         st.write("💨 **Luftqualität**")
 
         st.write(f"Ozon: {luft_status(l['ozon'])}")
-        st.write(f"Feinstaub PM2.5: {luft_status(l['pm25'])}")
-        st.write(f"Feinstaub PM10: {luft_status(l['pm10'])}")
 
+        st.write(f"PM2.5 (sehr feiner Feinstaub, dringt tief in die Lunge): {luft_status(l['pm25'])}")
 
-# -------------------------
-# Fussball
-# -------------------------
-
-st.divider()
-
-st.subheader("⚽ Fussball-Ticker")
-
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
-st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
+        st.write(f"PM10 (gröbere Staubpartikel aus Verkehr, Baustellen): {luft_status(l['pm10'])}")
 
 
 st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Basel App 2026")
