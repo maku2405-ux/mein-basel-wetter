@@ -3,16 +3,18 @@ import requests
 from datetime import datetime
 import pytz
 
-# 1. Seiteneinstellungen
+# ---------------------------------------------------------
+# Seiteneinstellungen
+# ---------------------------------------------------------
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
-# DEIN API-TOKEN
-API_TOKEN = "b63726db10d14e4baf5287dbb338bfb3"
+# API KEYS
+API_FOOTBALL_KEY = "DEIN_RAPIDAPI_KEY_HIER_EINFÜGEN"
 LAT, LON = 47.5584, 7.5733
 
-# -------------------------
+# ---------------------------------------------------------
 # Hilfsfunktionen
-# -------------------------
+# ---------------------------------------------------------
 
 def pollen_status(v):
     if v < 10: return "🟢 Niedrig"
@@ -30,14 +32,16 @@ def rhein_emoji(temp):
     else: return "🙂"
 
 def wetter_beschreibung(code):
-    mapping = {0: ("☀️", "Sonnig"), 1: ("🌤️", "Heiter"), 2: ("🌤️", "Leicht bewölkt"), 3: ("☁️", "Wolkig"), 
-               45: ("🌫️", "Nebel"), 48: ("🌫️", "Reifnebel"), 51: ("🌧️", "Leichter Regen"), 
-               61: ("🌧️", "Regen"), 95: ("⛈️", "Gewitter")}
+    mapping = {
+        0: ("☀️", "Sonnig"), 1: ("🌤️", "Heiter"), 2: ("🌤️", "Leicht bewölkt"),
+        3: ("☁️", "Wolkig"), 45: ("🌫️", "Nebel"), 48: ("🌫️", "Reifnebel"),
+        51: ("🌧️", "Leichter Regen"), 61: ("🌧️", "Regen"), 95: ("⛈️", "Gewitter")
+    }
     return mapping.get(code, ("☁️", "Bedeckt"))
 
-# -------------------------
-# Datenabfrage (Wetter & Luft)
-# -------------------------
+# ---------------------------------------------------------
+# Wetter & Luftdaten
+# ---------------------------------------------------------
 
 def hole_wetter():
     try:
@@ -46,77 +50,91 @@ def hole_wetter():
         c = r["current"]
         emoji, desc = wetter_beschreibung(c["weather_code"])
         return {"temp": c["temperature_2m"], "emoji": emoji, "desc": desc, "rhein": 8.4}
-    except: return None
+    except:
+        return None
 
 def hole_luft():
     try:
         url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&current=pm2_5,pm10,ozone,birch_pollen,grass_pollen"
         r = requests.get(url, timeout=10).json()
         c = r["current"]
-        return {"ozon": c.get("ozone", 0), "pm25": c.get("pm2_5", 0), "pm10": c.get("pm10", 0),
-                "birke": c.get("birch_pollen", 0), "gras": c.get("grass_pollen", 0)}
-    except: return None
-
-# -------------------------
-# Fussball (Gezielte Abfrage für HEUTE)
-# -------------------------
-
-def hole_fussball_ticker(team_name):
-    try:
-        headers = {"X-Auth-Token": API_TOKEN}
-        heute = datetime.now().strftime('%Y-%m-%d')
-        url = f"https://api.football-data.org/v4/competitions/2073/matches"
-        params = {"dateFrom": heute, "dateTo": heute}
-        
-        res = requests.get(url, headers=headers, params=params, timeout=10).json()
-        matches = res.get('matches', [])
-        
-        if not matches:
-            return "Heute keine Spiele in der Super League."
-
-        for m in matches:
-            h_name = m['homeTeam']['name'] or ""
-            h_short = m['homeTeam']['shortName'] or ""
-            a_name = m['awayTeam']['name'] or ""
-            a_short = m['awayTeam']['shortName'] or ""
-            
-            if (team_name.lower() in h_name.lower() or team_name.lower() in h_short.lower() or 
-                team_name.lower() in a_name.lower() or team_name.lower() in a_short.lower()):
-                
-                utc_time = datetime.strptime(m['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
-                local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Europe/Zurich'))
-                zeit_str = local_time.strftime("%H:%M")
-                
-                status = m['status']
-                s1 = m['score']['fullTime']['home']
-                s2 = m['score']['fullTime']['away']
-                t1_display = h_short or h_name
-                t2_display = a_short or a_name
-
-                if status in ["TIMED", "SCHEDULED"]:
-                    return f"{t1_display} vs. {t2_display} (Anpfiff {zeit_str} Uhr)"
-                elif status in ["IN_PLAY", "LIVE", "PAUSED"]:
-                    return f"{t1_display} {s1}:{s2} {t2_display} 🟢 LIVE"
-                elif status == "FINISHED":
-                    return f"{t1_display} {s1}:{s2} {t2_display} (Endstand)"
-        
-        return "Kein Spiel für dieses Team heute."
+        return {
+            "ozon": c.get("ozone", 0),
+            "pm25": c.get("pm2_5", 0),
+            "pm10": c.get("pm10", 0),
+            "birke": c.get("birch_pollen", 0),
+            "gras": c.get("grass_pollen", 0)
+        }
     except:
-        return "Daten aktuell nicht erreichbar."
+        return None
 
-# -------------------------
+# ---------------------------------------------------------
+# Fussball (API-Football)
+# ---------------------------------------------------------
+
+# Team-IDs (API-Football)
+TEAM_BASEL = 256
+TEAM_YB = 257
+
+def hole_fussball_ticker(team_id):
+    try:
+        url = "https://v3.football.api-sports.io/fixtures"
+        headers = {
+            "x-rapidapi-key": API_FOOTBALL_KEY,
+            "x-rapidapi-host": "v3.football.api-sports.io"
+        }
+
+        heute = datetime.now().strftime('%Y-%m-%d')
+        params = {
+            "team": team_id,
+            "date": heute,
+            "timezone": "Europe/Zurich"
+        }
+
+        r = requests.get(url, headers=headers, params=params, timeout=10).json()
+        games = r.get("response", [])
+
+        if not games:
+            return "Heute kein Spiel."
+
+        m = games[0]
+        home = m["teams"]["home"]["name"]
+        away = m["teams"]["away"]["name"]
+        status = m["fixture"]["status"]["short"]
+        goals_home = m["goals"]["home"]
+        goals_away = m["goals"]["away"]
+
+        # Anpfiff
+        if status == "NS":
+            zeit = m["fixture"]["date"][11:16]
+            return f"{home} vs. {away} (Anpfiff {zeit})"
+
+        # Live
+        if status in ["1H", "2H", "HT"]:
+            return f"{home} {goals_home}:{goals_away} {away} 🟢 LIVE"
+
+        # Endstand
+        if status == "FT":
+            return f"{home} {goals_home}:{goals_away} {away} (Endstand)"
+
+        return "Spielstatus unbekannt."
+
+    except Exception as e:
+        return "Daten nicht erreichbar."
+
+# ---------------------------------------------------------
 # UI Dashboard
-# -------------------------
+# ---------------------------------------------------------
 
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.fcb = hole_fussball_ticker("Basel")
-    st.session_state.yb = hole_fussball_ticker("Young Boys")
+    st.session_state.fcb = hole_fussball_ticker(TEAM_BASEL)
+    st.session_state.yb = hole_fussball_ticker(TEAM_YB)
 
-# --- Wetter & Rhein ---
+# Wetter
 w = st.session_state.w
 if w:
     rhein_e = rhein_emoji(w["rhein"])
@@ -127,7 +145,7 @@ if w:
     with c2:
         st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
 
-# --- Pollen & Luftqualität ---
+# Umwelt
 st.divider()
 st.subheader("🌳 Umwelt & Luft")
 
@@ -146,21 +164,11 @@ if l:
 else:
     st.warning("Umweltdaten konnten nicht geladen werden.")
 
-# --- DIESE ZEILEN SIND JETZT IMMER SICHTBAR ---
 st.write("") 
 st.markdown("<small>**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.</small>", unsafe_allow_html=True)
 st.markdown("<small>**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.</small>", unsafe_allow_html=True)
 
-# --- Fussball-Ticker ---
+# Fussball
 st.divider()
 st.subheader("⚽ Fussball-Ticker (Live)")
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
-st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
-
-# --- FUSSZEILE ---
-st.divider()
-tz_ch = pytz.timezone('Europe/Zurich')
-jetzt_ch = datetime.now(tz_ch).strftime('%H:%M')
-
-st.caption(f"Stand: {jetzt_ch} | Quellen: Open-Meteo, Football-Data.org")
-st.caption("(C)2026 by M. Kunz")
+st.write(f"🔴🔵 **
