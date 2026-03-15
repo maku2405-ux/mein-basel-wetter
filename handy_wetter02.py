@@ -56,24 +56,38 @@ def hole_luft():
     except: return None
 
 # -------------------------
-# Fussball (Ticker & Tabelle)
+# Fussball (Präzise Abfrage)
 # -------------------------
 
 def hole_fussball_daten(team_id):
     try:
-        # Holt das letzte Spiel dieses Teams
-        r = requests.get(f"https://api.openligadb.de/getlastmatchbyleagueteam/ch1/{team_id}").json()
-        t1, t2 = r['team1']['shortName'], r['team2']['shortName']
-        res = r['matchResults'][0]
-        return f"Letztes Spiel: {t1} {res['pointsTeam1']}:{res['pointsTeam2']} {t2}"
-    except: return "Keine aktuellen Spieldaten"
+        # Holt das wirklich allerletzte Spiel für dieses Team in der Super League (ch1)
+        r = requests.get(f"https://api.openligadb.de/getlastmatchbyleagueteam/ch1/{team_id}", timeout=10).json()
+        if r:
+            t1, t2 = r['team1']['shortName'], r['team2']['shortName']
+            # Suche nach dem Endergebnis (meist das erste in der Liste)
+            res = r['matchResults'][0]
+            return f"{t1} {res['pointsTeam1']}:{res['pointsTeam2']} {t2}"
+        return "Keine Spieldaten gefunden"
+    except: return "Daten aktuell nicht verfügbar"
 
 def hole_tabelle():
     try:
-        r = requests.get("https://api.openligadb.de/getbltable/ch1/2025").json()
+        # Wir fragen die Tabelle der Super League (ch1) für die aktuelle Periode ab
+        # Wenn 2025 falsch war, lassen wir die API die aktuellste Saison wählen
+        r = requests.get("https://api.openligadb.de/getbltable/ch1/2025", timeout=10).json()
+        if not r: # Falls 2025 leer ist, probieren wir es ohne Jahreszahl oder mit 2026
+             r = requests.get("https://api.openligadb.de/getbltable/ch1/2026", timeout=10).json()
+        
         data = []
         for i, team in enumerate(r, 1):
-            data.append({"Rang": i, "Team": team['shortName'], "Pkt": team['points'], "Sp": team['matches']})
+            data.append({
+                "Pos": i, 
+                "Team": team['teamName'], 
+                "Punkte": team['points'], 
+                "Spiele": team['matches'],
+                "Tore": f"{team['goals']}:{team['opponentGoals']}"
+            })
         return pd.DataFrame(data)
     except: return None
 
@@ -86,8 +100,8 @@ st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboar
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.fcb_info = hole_fussball_daten(128) # FCB
-    st.session_state.yb_info = hole_fussball_daten(122)  # YB
+    st.session_state.fcb_info = hole_fussball_daten(128) # Basel ID
+    st.session_state.yb_info = hole_fussball_daten(122)  # YB ID
     st.session_state.tabelle = hole_tabelle()
 
 # Wetter Anzeige
@@ -116,12 +130,15 @@ if st.session_state.l:
 
 # Fussball Sektion
 st.divider()
-st.subheader("⚽ Fussball-Update")
+st.subheader("⚽ Super League Update")
 st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb_info}")
 st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb_info}")
 
-if st.session_state.tabelle is not None:
-    with st.expander("📊 Super League Tabelle anzeigen"):
-        st.dataframe(st.session_state.tabelle, hide_index=True, use_container_width=True)
+if st.session_state.tabelle is not None and not st.session_state.tabelle.empty:
+    with st.expander("📊 Aktuelle Tabelle anzeigen"):
+        # Wir zeigen die Top 12 an (Standard Super League Größe)
+        st.table(st.session_state.tabelle.set_index("Pos"))
+else:
+    st.info("Tabelle wird gerade aktualisiert...")
 
 st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Basel App 2026")
