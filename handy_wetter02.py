@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 from datetime import datetime
+import pytz  # Für die korrekte Schweizer Zeitzone
 
 # 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
@@ -55,16 +56,13 @@ def hole_luft():
     except: return None
 
 # -------------------------
-# Fussball (Präzise Suche im aktuellen Spieltag)
+# Fussball (Suche im aktuellen Spieltag)
 # -------------------------
 
 def hole_fussball_ticker(team_name):
     try:
-        # 1. Wir holen zuerst die Info, welcher Spieltag aktuell ist
         group_res = requests.get("https://api.openligadb.de/getcurrentgroup/bsl").json()
         spieltag = group_res['groupOrderID']
-        
-        # 2. Wir laden alle Spiele dieses Spieltags (Saison 2025)
         url = f"https://api.openligadb.de/getmatchdata/bsl/2025/{spieltag}"
         res = requests.get(url, timeout=10).json()
         
@@ -130,7 +128,11 @@ st.subheader("⚽ Fussball-Ticker")
 st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
 st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
 
-# --- FUSSZEILE ---
+# --- FUSSZEILE (MIT ZEITZONEN-FIX) ---
 st.divider()
-st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Quellen: Open-Meteo Air Quality, Open-Meteo Weather, OpenLigaDB")
+# Schweizer Zeit berechnen
+tz_ch = pytz.timezone('Europe/Zurich')
+jetzt_ch = datetime.now(tz_ch).strftime('%H:%M')
+
+st.caption(f"Stand: {jetzt_ch} | Quellen: Open-Meteo Air Quality, Open-Meteo Weather, OpenLigaDB")
 st.caption("(C)2026 by M. Kunz")
