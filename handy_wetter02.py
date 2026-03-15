@@ -94,4 +94,12 @@ if l:
         st.caption(f"Birke: {'Niedrig' if l['birke'] < 10 else 'Hoch'}")
         st.caption(f"Gräser: {'Niedrig' if l['gras'] < 10 else 'Hoch'}")
     with col_p2:
-        st.write("💨 **Luft
+        st.write("💨 **Luftqualität:**")
+        st.caption(f"Ozon: {l['ozon']} µg/m³")
+        st.caption(f"Feinstaub (PM10): {l['pm10']} µg/m³")
+
+# 3. Fussball-Ticker
+st.divider()
+st.write("⚽ **Fussball Ticker:**")
+st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
+st.write(f"🟡⚫ **BSC Young Boys:** {st.session_state.yb}")
