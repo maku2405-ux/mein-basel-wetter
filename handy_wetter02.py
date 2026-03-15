@@ -11,7 +11,7 @@ def hole_wetter_und_rhein():
     try:
         url = "https://api.open-meteo.com/v1/forecast?latitude=47.5584&longitude=7.5733&current=temperature_2m,weather_code&timezone=Europe%2FBerlin"
         res = requests.get(url, timeout=5).json()
-        rhein_temp = 8.4  
+        rhein_temp = 8.4  # Statischer Wert oder von API ergänzen
         curr = res['current']
         temp, code = curr['temperature_2m'], curr['weather_code']
         emoji, desc = "☁️", "Bedeckt"
@@ -33,6 +33,7 @@ def hole_luft_und_pollen():
 
 def hole_fussball_ticker(suche_name):
     try:
+        # Abfrage für die Saison 2025 (entspricht 2025/26)
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
         jetzt = datetime.now()
         
@@ -46,22 +47,26 @@ def hole_fussball_ticker(suche_name):
         if not spiele_team:
             return "Kein Spiel gefunden"
 
-        # Sortieren nach zeitlicher Nähe zu JETZT
+        # Sortieren nach zeitlicher Nähe zum heutigen Datum (15.03.2026)
         spiele_team.sort(key=lambda x: abs((x[0] - jetzt).total_seconds()))
         
         naechstes_zeit, spiel = spiele_team[0]
         t1_s, t2_s = spiel['team1']['shortName'], spiel['team2']['shortName']
         res_list = spiel['matchResults']
         
+        # Punkte aus dem letzten Resultat-Eintrag (meist Endergebnis oder aktueller Stand)
         p1 = res_list[-1]['pointsTeam1'] if res_list else 0
         p2 = res_list[-1]['pointsTeam2'] if res_list else 0
 
         if not spiel['matchIsFinished']:
+            # Wenn das Spiel gerade läuft (innerhalb eines 2-Stunden-Fensters)
             if naechstes_zeit <= jetzt <= naechstes_zeit + timedelta(hours=2):
                 return f"🔴 LIVE: {t1_s} {p1}:{p2} {t2_s}"
+            # Wenn das Spiel in der Zukunft liegt
             tag = "Heute" if naechstes_zeit.date() == jetzt.date() else naechstes_zeit.strftime("%d.%m.")
             return f"⏳ {tag}: {t1_s} vs. {t2_s} ({naechstes_zeit.strftime('%H:%M')} Uhr)"
         else:
+            # Wenn das Spiel bereits beendet ist
             return f"FT: {t1_s} {p1}:{p2} {t2_s}"
     except:
         return "Daten aktuell nicht verfügbar"
@@ -95,37 +100,4 @@ if 'w' not in st.session_state:
 
 if st.button('🔄 DATEN AKTUALISIEREN'):
     st.session_state.w = hole_wetter_und_rhein()
-    st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fussball_ticker("Basel")
-    st.session_state.yb = hole_fussball_ticker("Young Boys")
-    st.rerun()
-
-# 1. Wetter & Rhein
-w = st.session_state.w
-if w:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-        st.write(f"Aktuell: **{w['desc']}**")
-    with c2:
-        st.metric("Rhein", f"🌊 {w['rhein']}°C")
-
-# 2. Luftqualität & Pollen
-l = st.session_state.l
-if l:
-    st.divider()
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        st.write("🌳 **Pollen:**")
-        st.caption(f"Birke: {'Niedrig' if l['birke'] < 10 else 'Hoch'}")
-        st.caption(f"Gräser: {'Niedrig' if l['gras'] < 10 else 'Hoch'}")
-    with col_p2:
-        st.write("💨 **Luftqualität:**")
-        st.caption(f"Ozon: {l['ozon']} µg/m³")
-        st.caption(f"Feinstaub (PM10): {l['pm10']} µg/m³")
-
-# 3. Fussball-Ticker
-st.divider()
-st.write("⚽ **Fussball Ticker:**")
-st.info(f"**FC Basel:** {st.session_state.fcb}")
-st.write(f"**BSC YB:** {st.session_state.yb}")
+    st.session_state.
