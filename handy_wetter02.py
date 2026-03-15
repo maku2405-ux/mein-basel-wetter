@@ -5,7 +5,7 @@ import pytz
 from PIL import Image
 import base64
 from io import BytesIO
-baslerstab = Image.open("baslerstab")
+baslerstab = Image.open("baslerstab.jpg")
 
 
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
@@ -97,7 +97,7 @@ def hole_luft():
 st.markdown(
     """
     <h1 style='text-align:center;color:#00529F;'>
-        <img src='baslerstab' width='40' style='vertical-align:middle; margin-right:10px;'>
+        <img src='baslerstab.jpg' width='40' style='vertical-align:middle; margin-right:10px;'>
         Basel Dashboard
     </h1>
     """,
