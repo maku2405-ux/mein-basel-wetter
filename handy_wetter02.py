@@ -5,9 +5,21 @@ import pytz
 from PIL import Image
 import base64
 from io import BytesIO
+
+# ---------------------------------------------------------
+# Bild laden und in Base64 umwandeln
+# ---------------------------------------------------------
+def image_to_base64(img):
+    buffer = BytesIO()
+    img.save(buffer, format="JPEG")
+    return base64.b64encode(buffer.getvalue()).decode()
+
 baselstab = Image.open("baselstab.jpg")
+baselstab_b64 = image_to_base64(baselstab)
 
-
+# ---------------------------------------------------------
+# Streamlit Setup
+# ---------------------------------------------------------
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 LAT = 47.5584
@@ -94,17 +106,23 @@ def hole_luft():
     except Exception:
         return None
 
+# ---------------------------------------------------------
+# Titel mit Baslerstab
+# ---------------------------------------------------------
 st.markdown(
-    """
+    f"""
     <h1 style='text-align:center;color:#00529F;'>
-        <img src='baselstab.jpg' width='40' style='vertical-align:middle; margin-right:10px;'>
+        <img src="data:image/jpeg;base64,{baselstab_b64}" width="40"
+             style="vertical-align:middle; margin-right:10px;">
         Basel Dashboard
     </h1>
     """,
     unsafe_allow_html=True
 )
 
-
+# ---------------------------------------------------------
+# Daten laden
+# ---------------------------------------------------------
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
@@ -156,4 +174,3 @@ st.caption(
     "Rheintemperatur: Messstation Basel (manuell eingetragen)".format(jetzt_ch)
 )
 st.caption("(C)2026 by M. Kunz")
-
