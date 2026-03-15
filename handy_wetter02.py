@@ -13,7 +13,6 @@ LON = 7.5733
 # -------------------------
 
 def pollen_status(v):
-
     if v < 10:
         return "🟢 Niedrig"
     elif v < 50:
@@ -23,7 +22,6 @@ def pollen_status(v):
 
 
 def luft_status(v):
-
     if v < 20:
         return f"🟢 {v}"
     elif v < 50:
@@ -33,7 +31,6 @@ def luft_status(v):
 
 
 def rhein_emoji(temp):
-
     if temp < 18:
         return "🥶"
     elif 20 <= temp <= 22:
@@ -49,16 +46,16 @@ def wetter_beschreibung(code):
     if code == 0:
         return "☀️", "Sonnig"
 
-    if code in [1, 2, 3]:
+    if code in [1,2,3]:
         return "🌤️", "Leicht bewölkt"
 
-    if code in [45, 48]:
+    if code in [45,48]:
         return "🌫️", "Neblig"
 
-    if code in [51, 53, 55, 61, 63, 65]:
+    if code in [51,53,55,61,63,65]:
         return "🌧️", "Regen"
 
-    if code in [71, 73, 75]:
+    if code in [71,73,75]:
         return "❄️", "Schnee"
 
     return "☁️", "Bedeckt"
@@ -72,7 +69,7 @@ def hole_wetter():
 
     try:
 
-        url = f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}¤t=temperature_2m,weather_code&timezone=Europe%2FBerlin"
+        url = f"https://api.open-meteo.com/v1/forecast?latitude={LAT}&longitude={LON}&current=temperature_2m,weather_code&timezone=Europe%2FBerlin"
 
         r = requests.get(url, timeout=10).json()
 
@@ -105,7 +102,7 @@ def hole_luft():
 
     try:
 
-        url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}¤t=pm2_5,pm10,ozone,birch_pollen,grass_pollen"
+        url = f"https://air-quality-api.open-meteo.com/v1/air-quality?latitude={LAT}&longitude={LON}&current=pm2_5,pm10,ozone,birch_pollen,grass_pollen"
 
         r = requests.get(url, timeout=10).json()
 
@@ -113,13 +110,13 @@ def hole_luft():
 
         return {
 
-            "ozon": c.get("ozone", 0),
+            "ozon": c.get("ozone",0),
 
-            "pm25": c.get("pm2_5", 0),
-            "pm10": c.get("pm10", 0),
+            "pm25": c.get("pm2_5",0),
+            "pm10": c.get("pm10",0),
 
-            "birke": c.get("birch_pollen", 0),
-            "gras": c.get("grass_pollen", 0)
+            "birke": c.get("birch_pollen",0),
+            "gras": c.get("grass_pollen",0)
         }
 
     except:
@@ -130,7 +127,7 @@ def hole_luft():
 # UI
 # -------------------------
 
-st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>",unsafe_allow_html=True)
 
 
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
@@ -149,7 +146,7 @@ if w:
 
     rhein_e = rhein_emoji(w["rhein"])
 
-    c1, c2 = st.columns(2)
+    c1,c2 = st.columns(2)
 
     c1.metric(
         "Luft",
@@ -164,7 +161,7 @@ if w:
 
 
 # -------------------------
-# Luftqualität
+# Pollen
 # -------------------------
 
 l = st.session_state.l
@@ -173,45 +170,28 @@ if l:
 
     st.divider()
 
-    c1, c2 = st.columns(2)
+    st.write("🌳 **Pollen**")
 
-    with c1:
+    st.write(f"Birke: {pollen_status(l['birke'])}")
+    st.write(f"Gräser: {pollen_status(l['gras'])}")
 
-        st.write("🌳 **Pollen**")
+    st.divider()
 
-        st.write(f"Birke: {pollen_status(l['birke'])}")
-        st.write(f"Gräser: {pollen_status(l['gras'])}")
+    # -------------------------
+    # Luftqualität
+    # -------------------------
 
-        st.divider()
+    st.write("💨 **Luftqualität**")
 
-        st.write("💨 **Luftqualität**")
+    st.write(f"Ozon: {luft_status(l['ozon'])}")
 
-        st.write(f"Ozon: {luft_status(l['ozon'])}")
+    st.write("")  # zusätzlicher Abstand
 
-        st.write("")  # zusätzlicher Abstand
+    st.write(f"PM2.5: {luft_status(l['pm25'])}")
+    st.caption("Sehr feine Partikel – dringen tief in die Lunge")
 
-        st.write(f"PM2.5: {luft_status(l['pm25'])}")
-        st.caption("Sehr feine Partikel – dringen tief in die Lunge")
-
-        st.write(f"PM10: {luft_status(l['pm10'])}")
-        st.caption("Gröbere Staubpartikel aus Verkehr und Staub")
-
-    with c2:
-        pass
+    st.write(f"PM10: {luft_status(l['pm10'])}")
+    st.caption("Gröbere Staubpartikel aus Verkehr und Staub")
 
 
 st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Basel App 2026")
-
-# -------------------------
-# Fußball-Ticker
-# -------------------------
-
-st.divider()
-
-# Letzte Spiele FC Basel
-st.write("**FC Basel**")
-st.write("Letztes Spiel: FC Basel 2:1 Servette FC")
-
-# Letzte Spiele BSC Young Boys 
-st.write("**BSC Young Boys**")
-st.write("Letztes Spiel: BSC Young Boys 3:1 FC Zürich")
