@@ -33,39 +33,51 @@ def hole_luft_und_pollen():
 
 def hole_fussball_ticker(team_id):
     try:
-        # Saison 2025 ist für die aktuelle Spielzeit korrekt
-        res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
+        # Wir rufen die aktuellen Spieldaten für die Schweizer Super League ab
+        res = requests.get("https://api.openligadb.de/getmatchdata/ch1", timeout=5).json()
+        if not res:
+            return "Keine Spieldaten verfügbar"
+            
         jetzt = datetime.now()
         zukuenftige_spiele = []
 
         for spiel in res:
+            # Überprüfen, ob eines der Teams die gesuchte ID hat
             if team_id == spiel['team1']['teamID'] or team_id == spiel['team2']['teamID']:
-                zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+                # Zeitformat der API umwandeln
+                match_date = spiel['matchDateTime']
+                # Manche APIs senden Millisekunden mit, die wir hier entfernen
+                if "." in match_date:
+                    match_date = match_date.split(".")[0]
+                
+                zeit = datetime.strptime(match_date, "%Y-%m-%dT%H:%M:%S")
                 
                 # 1. Check ob Spiel gerade LIVE läuft
-                if spiel['matchIsFinished'] == False and zeit <= jetzt:
+                if not spiel['matchIsFinished'] and zeit <= jetzt:
                     t1, t2 = spiel['team1']['shortName'], spiel['team2']['shortName']
-                    punkte1 = spiel['matchResults'][-1]['pointsTeam1'] if spiel['matchResults'] else 0
-                    punkte2 = spiel['matchResults'][-1]['pointsTeam2'] if spiel['matchResults'] else 0
-                    return f"🔴 LIVE: {t1} {punkte1}:{punkte2} {t2}"
+                    res_list = spiel['matchResults']
+                    p1 = res_list[-1]['pointsTeam1'] if res_list else 0
+                    p2 = res_list[-1]['pointsTeam2'] if res_list else 0
+                    return f"🔴 LIVE: {t1} {p1}:{p2} {t2}"
                 
                 # 2. Zukünftige Spiele sammeln
                 if zeit > jetzt:
                     zukuenftige_spiele.append(spiel)
 
         if zukuenftige_spiele:
-            # Das nächste anstehende Spiel nehmen
+            # Sortieren nach Datum und das nächste Spiel nehmen
             naechstes = sorted(zukuenftige_spiele, key=lambda x: x['matchDateTime'])[0]
-            zeit = datetime.strptime(naechstes['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+            m_date = naechstes['matchDateTime'].split(".")[0]
+            zeit = datetime.strptime(m_date, "%Y-%m-%dT%H:%M:%S")
             t1, t2 = naechstes['team1']['shortName'], naechstes['team2']['shortName']
             prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
             return f"{prefix}: {t1} vs. {t2} ({zeit.strftime('%H:%M')} Uhr)"
 
-        return "Kein Spiel in dieser Saison gefunden"
+        return "Kein Spiel geplant"
     except Exception as e:
-        return f"Fehler beim Laden"
+        return "Daten-Update läuft..."
 
-# --- WAPPEN LADEN (Placeholder für später) ---
+# --- WAPPEN LADEN ---
 def hole_wappen():
     try:
         url = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Wappen_Basel-Stadt.svg/250px-Wappen_Basel-Stadt.svg.png"
@@ -89,8 +101,8 @@ else:
 if 'w' not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fussball_ticker(128) # FC Basel
-    st.session_state.yb = hole_fussball_ticker(122)  # YB
+    st.session_state.fcb = hole_fussball_ticker(128)
+    st.session_state.yb = hole_fussball_ticker(122)
 
 if st.button('🔄 DATEN AKTUALISIEREN'):
     st.session_state.w = hole_wetter_und_rhein()
