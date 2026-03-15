@@ -126,4 +126,6 @@ if l:
 
 # 3. Fussball-Ticker
 st.divider()
-st.write("⚽ **F
+st.write("⚽ **Fussball Ticker:**")
+st.info(f"**FC Basel:** {st.session_state.fcb}")
+st.write(f"**BSC YB:** {st.session_state.yb}")
