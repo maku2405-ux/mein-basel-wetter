@@ -33,7 +33,6 @@ def hole_luft_und_pollen():
 
 def hole_fussball_ticker(suche_name):
     try:
-        # Gesamte Saison laden
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
         jetzt = datetime.now()
         
@@ -47,15 +46,13 @@ def hole_fussball_ticker(suche_name):
         if not spiele_team:
             return "Kein Spiel gefunden"
 
-        # Wir suchen das Spiel, das zeitlich am nächsten an "jetzt" liegt
-        # (Entweder gerade laufend, kurz davor oder das letzte beendete)
+        # Sortieren nach zeitlicher Nähe zu JETZT
         spiele_team.sort(key=lambda x: abs((x[0] - jetzt).total_seconds()))
         
         naechstes_zeit, spiel = spiele_team[0]
         t1_s, t2_s = spiel['team1']['shortName'], spiel['team2']['shortName']
         res_list = spiel['matchResults']
         
-        # Ergebnis-Logik
         p1 = res_list[-1]['pointsTeam1'] if res_list else 0
         p2 = res_list[-1]['pointsTeam2'] if res_list else 0
 
@@ -66,9 +63,8 @@ def hole_fussball_ticker(suche_name):
             return f"⏳ {tag}: {t1_s} vs. {t2_s} ({naechstes_zeit.strftime('%H:%M')} Uhr)"
         else:
             return f"FT: {t1_s} {p1}:{p2} {t2_s}"
-
-    except Exception:
-        return "Daten nicht verfügbar"
+    except:
+        return "Daten aktuell nicht verfügbar"
 
 # --- WAPPEN LADEN ---
 def hole_wappen():
@@ -90,7 +86,7 @@ if wappen:
 else:
     st.markdown("<h1 style='text-align: center;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
-# Initialisierung
+# Initialisierung Session State
 if 'w' not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
@@ -122,4 +118,12 @@ if l:
     with col_p1:
         st.write("🌳 **Pollen:**")
         st.caption(f"Birke: {'Niedrig' if l['birke'] < 10 else 'Hoch'}")
-        st.caption(f"Gräser: {'Niedrig' if l['gras']
+        st.caption(f"Gräser: {'Niedrig' if l['gras'] < 10 else 'Hoch'}")
+    with col_p2:
+        st.write("💨 **Luftqualität:**")
+        st.caption(f"Ozon: {l['ozon']} µg/m³")
+        st.caption(f"Feinstaub (PM10): {l['pm10']} µg/m³")
+
+# 3. Fussball-Ticker
+st.divider()
+st.write("⚽ **F
