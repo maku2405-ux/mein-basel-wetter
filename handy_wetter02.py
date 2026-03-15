@@ -5,7 +5,7 @@ import pytz
 from PIL import Image
 import base64
 from io import BytesIO
-baslerstab = Image.open("baselstab.jpg")
+baselstab = Image.open("baselstab.jpg")
 
 
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
