@@ -1,11 +1,13 @@
 import streamlit as st
 import requests
 from datetime import datetime
-import pytz  # Für die korrekte Schweizer Zeitzone
+import pytz
 
 # 1. Seiteneinstellungen
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
+# DEIN API-TOKEN
+API_TOKEN = "b63726db10d14e4baf5287dbb338bfb3"
 LAT, LON = 47.5584, 7.5733
 
 # -------------------------
@@ -56,28 +58,43 @@ def hole_luft():
     except: return None
 
 # -------------------------
-# Fussball (Suche im aktuellen Spieltag)
+# Fussball (Mit deinem API-Token)
 # -------------------------
 
 def hole_fussball_ticker(team_name):
     try:
-        group_res = requests.get("https://api.openligadb.de/getcurrentgroup/bsl").json()
-        spieltag = group_res['groupOrderID']
-        url = f"https://api.openligadb.de/getmatchdata/bsl/2025/{spieltag}"
-        res = requests.get(url, timeout=10).json()
+        # ID 2073 = Schweizer Super League
+        url = "https://api.football-data.org/v4/competitions/2073/matches"
+        headers = {"X-Auth-Token": API_TOKEN}
         
-        for m in res:
-            if team_name in m['team1']['teamName'] or team_name in m['team2']['teamName']:
-                t1, t2 = m['team1']['shortName'], m['team2']['shortName']
-                if m['matchResults']:
-                    r = m['matchResults'][0]
-                    status = " (Endstand)" if m['matchIsFinished'] else " (LIVE)"
-                    return f"{t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}{status}"
+        # Aktuelles Datum für den Filter (HEUTE)
+        heute = datetime.now().strftime('%Y-%m-%d')
+        # Wir holen alle Spiele der Saison und filtern lokal nach dem Team
+        res = requests.get(url, headers=headers, timeout=10).json()
+        
+        for m in res.get('matches', []):
+            t1 = m['homeTeam']['shortName'] or m['homeTeam']['name']
+            t2 = m['awayTeam']['shortName'] or m['awayTeam']['name']
+            
+            # Prüfen, ob unser Team heute spielt
+            if team_name.lower() in t1.lower() or team_name.lower() in t2.lower():
+                # Zeit umrechnen (UTC zu Schweiz)
+                utc_time = datetime.strptime(m['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
+                local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Europe/Zurich'))
+                zeit_str = local_time.strftime("%H:%M")
+                
+                status = m['status']
+                if status in ["IN_PLAY", "FINISHED", "PAUSED"]:
+                    s1 = m['score']['fullTime']['home']
+                    s2 = m['score']['fullTime']['away']
+                    tag = " (LIVE)" if status != "FINISHED" else " (Endstand)"
+                    return f"{t1} {s1}:{s2} {t2}{tag}"
                 else:
-                    zeit = datetime.strptime(m['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%H:%M")
-                    return f"{t1} vs. {t2} (Anpfiff {zeit} Uhr)"
-        return "Kein Spiel an diesem Spieltag"
-    except: return "Daten aktuell nicht verfügbar"
+                    return f"{t1} vs. {t2} (Anpfiff {zeit_str} Uhr)"
+        
+        return "Kein Spiel heute"
+    except Exception as e: 
+        return "Daten aktuell nicht verfügbar"
 
 # -------------------------
 # UI Dashboard
@@ -128,11 +145,10 @@ st.subheader("⚽ Fussball-Ticker")
 st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
 st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
 
-# --- FUSSZEILE (MIT ZEITZONEN-FIX) ---
+# --- FUSSZEILE ---
 st.divider()
-# Schweizer Zeit berechnen
 tz_ch = pytz.timezone('Europe/Zurich')
 jetzt_ch = datetime.now(tz_ch).strftime('%H:%M')
 
-st.caption(f"Stand: {jetzt_ch} | Quellen: Open-Meteo Air Quality, Open-Meteo Weather, OpenLigaDB")
+st.caption(f"Stand: {jetzt_ch} | Quellen: Open-Meteo, Football-Data.org")
 st.caption("(C)2026 by M. Kunz")
