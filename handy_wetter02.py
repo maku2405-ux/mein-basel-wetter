@@ -45,6 +45,7 @@ def hole_wetter():
         r = requests.get(url, timeout=10).json()
         c = r["current"]
         emoji, desc = wetter_beschreibung(c["weather_code"])
+        # Rhein-Temperatur hier statisch gelassen, da kein Sensor-Link vorliegt
         return {"temp": c["temperature_2m"], "emoji": emoji, "desc": desc, "rhein": 8.4}
     except: return None
 
@@ -58,43 +59,57 @@ def hole_luft():
     except: return None
 
 # -------------------------
-# Fussball (Mit deinem API-Token)
+# Fussball (Gezielte Abfrage für HEUTE)
 # -------------------------
 
 def hole_fussball_ticker(team_name):
     try:
-        # ID 2073 = Schweizer Super League
-        url = "https://api.football-data.org/v4/competitions/2073/matches"
         headers = {"X-Auth-Token": API_TOKEN}
-        
-        # Aktuelles Datum für den Filter (HEUTE)
+        # Wir filtern direkt in der API-Anfrage nach dem heutigen Datum
         heute = datetime.now().strftime('%Y-%m-%d')
-        # Wir holen alle Spiele der Saison und filtern lokal nach dem Team
-        res = requests.get(url, headers=headers, timeout=10).json()
         
-        for m in res.get('matches', []):
-            t1 = m['homeTeam']['shortName'] or m['homeTeam']['name']
-            t2 = m['awayTeam']['shortName'] or m['awayTeam']['name']
+        # Schweizer Super League (ID 2073)
+        url = f"https://api.football-data.org/v4/competitions/2073/matches"
+        params = {"dateFrom": heute, "dateTo": heute}
+        
+        res = requests.get(url, headers=headers, params=params, timeout=10).json()
+        matches = res.get('matches', [])
+        
+        if not matches:
+            return "Heute kein Super League Spiel angesetzt."
+
+        for m in matches:
+            # Wir prüfen alle Namensvarianten (Vollname und Kurzname)
+            h_name = m['homeTeam']['name'] or ""
+            h_short = m['homeTeam']['shortName'] or ""
+            a_name = m['awayTeam']['name'] or ""
+            a_short = m['awayTeam']['shortName'] or ""
             
-            # Prüfen, ob unser Team heute spielt
-            if team_name.lower() in t1.lower() or team_name.lower() in t2.lower():
-                # Zeit umrechnen (UTC zu Schweiz)
+            if (team_name.lower() in h_name.lower() or team_name.lower() in h_short.lower() or 
+                team_name.lower() in a_name.lower() or team_name.lower() in a_short.lower()):
+                
+                # Zeit UTC -> Schweiz
                 utc_time = datetime.strptime(m['utcDate'], "%Y-%m-%dT%H:%M:%SZ")
                 local_time = utc_time.replace(tzinfo=pytz.utc).astimezone(pytz.timezone('Europe/Zurich'))
                 zeit_str = local_time.strftime("%H:%M")
                 
                 status = m['status']
-                if status in ["IN_PLAY", "FINISHED", "PAUSED"]:
-                    s1 = m['score']['fullTime']['home']
-                    s2 = m['score']['fullTime']['away']
-                    tag = " (LIVE)" if status != "FINISHED" else " (Endstand)"
-                    return f"{t1} {s1}:{s2} {t2}{tag}"
-                else:
-                    return f"{t1} vs. {t2} (Anpfiff {zeit_str} Uhr)"
+                s1 = m['score']['fullTime']['home']
+                s2 = m['score']['fullTime']['away']
+                
+                t1_display = h_short or h_name
+                t2_display = a_short or a_name
+
+                if status in ["TIMED", "SCHEDULED"]:
+                    return f"{t1_display} vs. {t2_display} (Anpfiff {zeit_str} Uhr)"
+                elif status in ["IN_PLAY", "LIVE", "PAUSED"]:
+                    return f"{t1_display} {s1}:{s2} {t2_display} 🟢 LIVE"
+                elif status == "FINISHED":
+                    return f"{t1_display} {s1}:{s2} {t2_display} (Endstand)"
         
-        return "Kein Spiel heute"
-    except Exception as e: 
-        return "Daten aktuell nicht verfügbar"
+        return "Kein Spiel für dieses Team heute."
+    except:
+        return "Daten aktuell nicht erreichbar."
 
 # -------------------------
 # UI Dashboard
@@ -102,6 +117,7 @@ def hole_fussball_ticker(team_name):
 
 st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
+# Button zum manuellen Aktualisieren
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
@@ -134,14 +150,10 @@ if l:
     cl1.write(f"Ozon: {luft_status(l['ozon'])}")
     cl2.write(f"PM 2.5: {luft_status(l['pm25'])}")
     cl3.write(f"PM 10: {luft_status(l['pm10'])}")
-    
-    st.write("") 
-    st.caption("**PM 2.5:** Sehr feine Partikel (Autoabgase, Industrie), dringen tief in die Lunge ein.")
-    st.caption("**PM 10:** Grössere Staubpartikel (Abrieb, Baustellen, Pollen), belasten die Atemwege.")
 
-# Fussball
+# Fussball-Ticker
 st.divider()
-st.subheader("⚽ Fussball-Ticker")
+st.subheader("⚽ Fussball-Ticker (Live)")
 st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
 st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
 
