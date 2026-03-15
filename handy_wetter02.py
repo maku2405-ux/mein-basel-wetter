@@ -1,6 +1,6 @@
 import streamlit as st
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image
 from io import BytesIO
 
@@ -33,41 +33,40 @@ def hole_luft_und_pollen():
 
 def hole_fussball_ticker(suche_name):
     try:
-        # Wir holen nur den AKTUELLEN Spieltag (Saison 2025)
-        # Die API liefert hier automatisch die Spiele rund um das aktuelle Datum
+        # Gesamte Saison laden
         res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
-        
         jetzt = datetime.now()
         
+        spiele_team = []
         for spiel in res:
-            t1_name = spiel['team1']['teamName']
-            t2_name = spiel['team2']['teamName']
-            
-            if suche_name.lower() in t1_name.lower() or suche_name.lower() in t2_name.lower():
+            if suche_name.lower() in spiel['team1']['teamName'].lower() or suche_name.lower() in spiel['team2']['teamName'].lower():
                 match_date = spiel['matchDateTime'].split(".")[0]
-                zeit = datetime.strptime(match_date, "%Y-%m-%dT%H:%M:%S")
-                t1_s, t2_s = spiel['team1']['shortName'], spiel['team2']['shortName']
+                spiel_zeit = datetime.strptime(match_date, "%Y-%m-%dT%H:%M:%S")
+                spiele_team.append((spiel_zeit, spiel))
+        
+        if not spiele_team:
+            return "Kein Spiel gefunden"
 
-                # 1. LIVE-Check (Spiel läuft gerade oder heute)
-                if not spiel['matchIsFinished']:
-                    # Wenn das Spiel heute ist oder gerade läuft
-                    res_list = spiel['matchResults']
-                    if res_list:
-                        p1 = res_list[-1]['pointsTeam1']
-                        p2 = res_list[-1]['pointsTeam2']
-                        return f"🔴 LIVE: {t1_s} {p1}:{p2} {t2_s}"
-                    else:
-                        tag = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
-                        return f"⏳ {tag}: {t1_s} vs. {t2_s} ({zeit.strftime('%H:%M')} Uhr)"
-                
-                # 2. Letztes Spiel (falls Spieltag für dieses Team schon vorbei ist)
-                if spiel['matchIsFinished']:
-                    res_list = spiel['matchResults']
-                    p1 = res_list[-1]['pointsTeam1'] if res_list else 0
-                    p2 = res_list[-1]['pointsTeam2'] if res_list else 0
-                    return f"FT: {t1_s} {p1}:{p2} {t2_s}"
+        # Wir suchen das Spiel, das zeitlich am nächsten an "jetzt" liegt
+        # (Entweder gerade laufend, kurz davor oder das letzte beendete)
+        spiele_team.sort(key=lambda x: abs((x[0] - jetzt).total_seconds()))
+        
+        naechstes_zeit, spiel = spiele_team[0]
+        t1_s, t2_s = spiel['team1']['shortName'], spiel['team2']['shortName']
+        res_list = spiel['matchResults']
+        
+        # Ergebnis-Logik
+        p1 = res_list[-1]['pointsTeam1'] if res_list else 0
+        p2 = res_list[-1]['pointsTeam2'] if res_list else 0
 
-        return "Kein Spiel an diesem Spieltag"
+        if not spiel['matchIsFinished']:
+            if naechstes_zeit <= jetzt <= naechstes_zeit + timedelta(hours=2):
+                return f"🔴 LIVE: {t1_s} {p1}:{p2} {t2_s}"
+            tag = "Heute" if naechstes_zeit.date() == jetzt.date() else naechstes_zeit.strftime("%d.%m.")
+            return f"⏳ {tag}: {t1_s} vs. {t2_s} ({naechstes_zeit.strftime('%H:%M')} Uhr)"
+        else:
+            return f"FT: {t1_s} {p1}:{p2} {t2_s}"
+
     except Exception:
         return "Daten nicht verfügbar"
 
@@ -123,14 +122,4 @@ if l:
     with col_p1:
         st.write("🌳 **Pollen:**")
         st.caption(f"Birke: {'Niedrig' if l['birke'] < 10 else 'Hoch'}")
-        st.caption(f"Gräser: {'Niedrig' if l['gras'] < 10 else 'Hoch'}")
-    with col_p2:
-        st.write("💨 **Luftqualität:**")
-        st.caption(f"Ozon: {l['ozon']} µg/m³")
-        st.caption(f"Feinstaub (PM10): {l['pm10']} µg/m³")
-
-# 3. Fussball-Ticker
-st.divider()
-st.write("⚽ **Fussball Ticker:**")
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
-st.write(f"🟡⚫ **BSC Young Boys:** {st.session_state.yb}")
+        st.caption(f"Gräser: {'Niedrig' if l['gras']
