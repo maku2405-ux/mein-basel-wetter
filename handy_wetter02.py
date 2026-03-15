@@ -3,6 +3,9 @@ import requests
 from datetime import datetime
 import pytz
 from PIL import Image
+import base64
+from io import BytesIO
+
 
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
