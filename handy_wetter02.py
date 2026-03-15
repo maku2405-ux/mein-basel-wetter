@@ -9,7 +9,7 @@ import pytz
 st.set_page_config(page_title="Basler Luft & Rhein", page_icon="🌊")
 
 # API KEY für API-Football (RapidAPI)
-API_FOOTBALL_KEY = "DEIN_RAPIDAPI_KEY_HIER_EINFÜGEN"
+API_FOOTBALL_KEY = "eb1ca26db9msh9328934f2c4c7a1p1bcc89jsn77ec1b9ee50a"
 LAT = 47.5584
 LON = 7.5733
 
