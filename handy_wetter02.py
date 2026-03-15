@@ -63,33 +63,29 @@ if st.button('🔄 DATEN AKTUALISIEREN') or 'w' not in st.session_state:
     st.session_state.fcb = hole_fcb_ticker(128)
     st.session_state.yb = hole_fcb_ticker(122)
 
-# 1. Wetter & Rhein (Korrigiertes Layout)
+# 1. Wetter & Rhein
 w = st.session_state.w
 if w:
     c1, c2 = st.columns(2)
     with c1:
         st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
-        st.write(f"**{w['desc']}**")  # Beschreibung direkt unter Metric
+        st.write(f"**{w['desc']}**")
     with c2:
         st.metric("Rhein", f"🌊 {w['rhein']}°C")
 
-# 2. Luftqualität & Pollen
+# 2. Luftqualität & Pollen (MIT FARB-WARNUNG)
 l = st.session_state.l
 if l:
     st.divider()
     col_p1, col_p2 = st.columns(2)
+    
     with col_p1:
         st.write("🌳 **Pollen:**")
-        st.caption(f"Birke: {'Niedrig' if l['birke'] < 10 else 'Hoch'}")
-        st.caption(f"Gräser: {'Niedrig' if l['gras'] < 10 else 'Hoch'}")
-    with col_p2:
-        st.write("💨 **Luft:**")
-        st.caption(f"Ozon: {l['ozon']} (Gut)" if l['ozon'] < 80 else f"Ozon: {l['ozon']} (Hoch)")
-
-# 3. Fussball
-st.divider()
-st.subheader("⚽ Fussball-Ticker")
-st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb}")
-st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb}")
-
-st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Basel App 2026")
+        # Birke Warnung
+        if l['birke'] > 50: st.error(f"Birke: Hoch")
+        elif l['birke'] > 10: st.warning(f"Birke: Mittel")
+        else: st.success(f"Birke: Niedrig")
+        
+        # Gräser Warnung
+        if l['gras'] > 50: st.error(f"Gräser: Hoch")
+        elif l['gras'] > 10: st.warning(f"Gräser: Mittel")
