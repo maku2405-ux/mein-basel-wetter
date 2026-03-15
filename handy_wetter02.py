@@ -31,30 +31,45 @@ def hole_luft_und_pollen():
     except:
         return None
 
-def hole_fcb_ticker(team_id):
+def hole_fussball_ticker(team_id):
     try:
-        res = requests.get(f"https://api.openligadb.de/getmatchdata/ch1/2026", timeout=5).json()
+        # Saison 2025 ist für die aktuelle Spielzeit korrekt
+        res = requests.get("https://api.openligadb.de/getmatchdata/ch1/2025", timeout=5).json()
         jetzt = datetime.now()
+        zukuenftige_spiele = []
+
         for spiel in res:
             if team_id == spiel['team1']['teamID'] or team_id == spiel['team2']['teamID']:
                 zeit = datetime.strptime(spiel['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
-                if zeit.date() >= jetzt.date():
+                
+                # 1. Check ob Spiel gerade LIVE läuft
+                if spiel['matchIsFinished'] == False and zeit <= jetzt:
                     t1, t2 = spiel['team1']['shortName'], spiel['team2']['shortName']
-                    if spiel['matchResults'] and not spiel['matchIsFinished']:
-                        r = spiel['matchResults'][-1]
-                        return f"🔴 LIVE: {t1} {r['pointsTeam1']}:{r['pointsTeam2']} {t2}"
-                    prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
-                    return f"{prefix}: {t1} vs. {t2} ({zeit.strftime('%H:%M')} Uhr)"
-        return "Kein Spiel geplant"
-    except:
-        return "Daten konnten nicht geladen werden"
+                    punkte1 = spiel['matchResults'][-1]['pointsTeam1'] if spiel['matchResults'] else 0
+                    punkte2 = spiel['matchResults'][-1]['pointsTeam2'] if spiel['matchResults'] else 0
+                    return f"🔴 LIVE: {t1} {punkte1}:{punkte2} {t2}"
+                
+                # 2. Zukünftige Spiele sammeln
+                if zeit > jetzt:
+                    zukuenftige_spiele.append(spiel)
 
-# --- WAPPEN LADEN ---
+        if zukuenftige_spiele:
+            # Das nächste anstehende Spiel nehmen
+            naechstes = sorted(zukuenftige_spiele, key=lambda x: x['matchDateTime'])[0]
+            zeit = datetime.strptime(naechstes['matchDateTime'], "%Y-%m-%dT%H:%M:%S")
+            t1, t2 = naechstes['team1']['shortName'], naechstes['team2']['shortName']
+            prefix = "Heute" if zeit.date() == jetzt.date() else zeit.strftime("%d.%m.")
+            return f"{prefix}: {t1} vs. {t2} ({zeit.strftime('%H:%M')} Uhr)"
+
+        return "Kein Spiel in dieser Saison gefunden"
+    except Exception as e:
+        return f"Fehler beim Laden"
+
+# --- WAPPEN LADEN (Placeholder für später) ---
 def hole_wappen():
     try:
-        # Stabiler Link zum Basel-Stadt Wappen
         url = "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Wappen_Basel-Stadt.svg/250px-Wappen_Basel-Stadt.svg.png"
-        response = requests.get(url)
+        response = requests.get(url, timeout=3)
         return Image.open(BytesIO(response.content))
     except:
         return None
@@ -64,12 +79,9 @@ wappen = hole_wappen()
 
 if wappen:
     col_t1, col_t2, col_t3 = st.columns([1, 3, 1])
-    with col_t1:
-        st.image(wappen, width=80)
-    with col_t2:
-        st.markdown("<h1 style='text-align: center; color: #000000; padding-top: 10px;'>Basel Dashboard</h1>", unsafe_allow_html=True)
-    with col_t3:
-        st.image(wappen, width=80)
+    with col_t1: st.image(wappen, width=80)
+    with col_t2: st.markdown("<h1 style='text-align: center; color: #000000; padding-top: 10px;'>Basel Dashboard</h1>", unsafe_allow_html=True)
+    with col_t3: st.image(wappen, width=80)
 else:
     st.markdown("<h1 style='text-align: center;'>🏙️ Basel Dashboard</h1>", unsafe_allow_html=True)
 
@@ -77,14 +89,14 @@ else:
 if 'w' not in st.session_state:
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fcb_ticker(128)
-    st.session_state.yb = hole_fcb_ticker(122)
+    st.session_state.fcb = hole_fussball_ticker(128) # FC Basel
+    st.session_state.yb = hole_fussball_ticker(122)  # YB
 
 if st.button('🔄 DATEN AKTUALISIEREN'):
     st.session_state.w = hole_wetter_und_rhein()
     st.session_state.l = hole_luft_und_pollen()
-    st.session_state.fcb = hole_fcb_ticker(128)
-    st.session_state.yb = hole_fcb_ticker(122)
+    st.session_state.fcb = hole_fussball_ticker(128)
+    st.session_state.yb = hole_fussball_ticker(122)
     st.rerun()
 
 # 1. Wetter & Rhein
