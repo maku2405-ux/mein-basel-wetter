@@ -56,29 +56,29 @@ def hole_luft():
     except: return None
 
 # -------------------------
-# Fussball (Manuelle Korrektur & API-Check)
+# Fussball (Korrigiert auf bsl / 2025)
 # -------------------------
 
-def hole_tabelle_schweiz():
+def hole_letztes_spiel(team_name):
     try:
-        # Wir versuchen die Schweizer Super League (ch1) abzurufen
-        # Da Thun Leader ist, erzwingen wir die Abfrage der aktuellen Saison
-        r = requests.get("https://api.openligadb.de/getbltable/ch1/2025", timeout=10).json()
-        if not r:
-            return None
+        # Abfrage der Swiss Super League (bsl) für die aktuelle Saison 2025
+        url = "https://api.openligadb.de/getmatchdata/bsl/2025"
+        res = requests.get(url, timeout=10).json()
         
-        data = []
-        for i, team in enumerate(r, 1):
-            data.append({
-                "Pos": i, 
-                "Team": team['teamName'], 
-                "Pkt": team['points'], 
-                "Sp": team['matches']
-            })
-        df = pd.DataFrame(data)
-        return df
+        # Wir suchen das aktuellste Spiel des Teams (das letzte, das ein Ergebnis hat)
+        gespielte_spiele = [s for s in res if (team_name in s['team1']['teamName'] or team_name in s['team2']['teamName']) and s['matchIsFinished']]
+        
+        if gespielte_spiele:
+            letztes = gespielte_spiele[-1]
+            t1 = letztes['team1']['shortName']
+            t2 = letztes['team2']['shortName']
+            ergebnis = letztes['matchResults'][0]
+            datum = datetime.strptime(letztes['matchDateTime'], "%Y-%m-%dT%H:%M:%S").strftime("%d.%m.")
+            return f"{datum}: {t1} {ergebnis['pointsTeam1']}:{ergebnis['pointsTeam2']} {t2}"
+        
+        return "Keine aktuellen Ergebnisse gefunden"
     except:
-        return None
+        return "Daten aktuell nicht verfügbar"
 
 # -------------------------
 # UI
@@ -89,21 +89,23 @@ st.markdown("<h1 style='text-align:center;color:#00529F;'>🏙️ Basel Dashboar
 if st.button("🔄 DATEN AKTUALISIEREN") or "w" not in st.session_state:
     st.session_state.w = hole_wetter()
     st.session_state.l = hole_luft()
-    st.session_state.tabelle = hole_tabelle_schweiz()
+    st.session_state.fcb_info = hole_letztes_spiel("Basel")
+    st.session_state.yb_info = hole_letztes_spiel("Young Boys")
 
 # Wetter Anzeige
-if st.session_state.w:
-    w = st.session_state.w
+w = st.session_state.w
+if w:
+    rhein_e = rhein_emoji(w["rhein"])
     c1, c2 = st.columns(2)
     with c1:
         st.metric("Luft", f"{w['emoji']} {w['temp']}°C")
         st.write(f"**{w['desc']}**")
     with c2:
-        st.metric("Rhein", f"{rhein_emoji(w['rhein'])} {w['rhein']}°C")
+        st.metric("Rhein", f"{rhein_e} {w['rhein']}°C")
 
 # Luft & Pollen
-if st.session_state.l:
-    l = st.session_state.l
+l = st.session_state.l
+if l:
     st.divider()
     cl1, cl2 = st.columns(2)
     with cl1:
@@ -117,20 +119,11 @@ if st.session_state.l:
 
 # Fussball Sektion
 st.divider()
-st.subheader("⚽ Super League Update")
+st.subheader("⚽ Fussball-Ticker (Super League)")
+st.write(f"🔴🔵 **FC Basel:** {st.session_state.fcb_info}")
+st.write(f"🟡⚫ **Young Boys:** {st.session_state.yb_info}")
 
-# Falls die API versagt, zeigen wir eine Info-Meldung, statt falsche Daten
-if st.session_state.tabelle is not None and not st.session_state.tabelle.empty:
-    # Wir prüfen, ob Thun wirklich drin ist, sonst ist es die falsche Liga
-    if any("Thun" in str(x) for x in st.session_state.tabelle["Team"]):
-        st.table(st.session_state.tabelle.set_index("Pos"))
-    else:
-        st.warning("⚠️ Die Liga-Daten werden gerade neu synchronisiert.")
-        st.info("Aktueller Leader: FC Thun (Manuelles Update folgt)")
-else:
-    st.error("Fussball-Daten aktuell nicht erreichbar.")
-
-# --- FUSSZEILE (KORRIGIERT) ---
+# --- FUSSZEILE ---
 st.divider()
 st.caption(f"Stand: {datetime.now().strftime('%H:%M')} | Quellen: Open-Meteo, OpenLigaDB")
 st.caption("(C)2026 by M. Kunz")
