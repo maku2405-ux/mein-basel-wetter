@@ -188,6 +188,8 @@ if l:
 
         st.write(f"Ozon: {luft_status(l['ozon'])}")
 
+        st.write("")  # zusätzlicher Abstand
+
         st.write(f"PM2.5: {luft_status(l['pm25'])}")
         st.caption("Sehr feine Partikel – dringen tief in die Lunge")
 
